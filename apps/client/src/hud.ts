@@ -1,5 +1,5 @@
 import type { EnemyMarker, MapDef, MatchState, SnapPlayer, Snapshot, Team, WeaponId, ZoneState } from '@pta/shared';
-import { CHARACTER_INFO, STR, TICK_RATE, WEAPONS, inRect } from '@pta/shared';
+import { ATTACK_NAMES, CHARACTER_INFO, STR, TICK_RATE, WEAPONS, inRect } from '@pta/shared';
 import { settings } from './settings.js';
 
 function el(tag: string, cls: string, parent: HTMLElement): HTMLElement {
@@ -242,7 +242,7 @@ export class Hud {
       this.hpBar.classList.toggle('low', hp <= 30);
       this.shieldBar.style.width = `${((self.shield ?? 0) / 50) * 100}%`;
       const w = WEAPONS[(self.weapon ?? 'pulso') as WeaponId];
-      this.weaponText.textContent = w.nombre;
+      this.weaponText.textContent = ATTACK_NAMES[self.character][w.id];
       this.ammoText.textContent = (self.reloadTicksLeft ?? 0) > 0 ? '···' : `${self.ammo ?? 0} / ${w.cargador}`;
       const util: string[] = [];
       if ((self.abilityCharges ?? 0) > 0) util.push(`Q ${CHARACTER_INFO[self.character].habilidad}`);
@@ -360,8 +360,8 @@ export class Hud {
     this.buyMenu.innerHTML = `
       <h3>${STR.compra} · <span class="credits">${credits} cr</span></h3>
       <div class="buy-grid">
-        ${item('rafaga', WEAPONS.rafaga.nombre, WEAPONS.rafaga.precio, self.weapon === 'rafaga', false)}
-        ${item('preciso', WEAPONS.preciso.nombre, WEAPONS.preciso.precio, self.weapon === 'preciso', false)}
+        ${item('rafaga', `${ATTACK_NAMES[self.character].rafaga} · ${WEAPONS.rafaga.nombre}`, WEAPONS.rafaga.precio, self.weapon === 'rafaga', false)}
+        ${item('preciso', `${ATTACK_NAMES[self.character].preciso} · ${WEAPONS.preciso.nombre}`, WEAPONS.preciso.precio, self.weapon === 'preciso', false)}
         ${item('escudo', 'Escudo (50)', 650, (self.shield ?? 0) >= 50, false)}
         ${item('habilidad', `Q · ${CHARACTER_INFO[self.character].habilidad}`, 400, (self.abilityCharges ?? 0) > 0, false)}
         ${item('granada', 'G · Granada de niebla', 300, (self.grenadeCharges ?? 0) > 0, false)}

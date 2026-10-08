@@ -141,6 +141,18 @@ export type Team = 0 | 1; // 0 = azul, 1 = naranja
 export type CharacterId = 'pikachu' | 'charmander' | 'squirtle' | 'bulbasaur';
 export const CHARACTERS: CharacterId[] = ['pikachu', 'charmander', 'squirtle', 'bulbasaur'];
 
+/**
+ * Nombre del ataque según el personaje y el perfil equipado. Los tres perfiles son
+ * mecánicamente comunes (daño/cadencia/alcance idénticos); solo cambia su identidad
+ * elemental: Impactrueno y Ascuas son el pulso básico, Rayo o Hidrobomba el preciso, etc.
+ */
+export const ATTACK_NAMES: Record<CharacterId, Record<WeaponId, string>> = {
+  pikachu: { pulso: 'Impactrueno', rafaga: 'Chispa', preciso: 'Rayo' },
+  charmander: { pulso: 'Ascuas', rafaga: 'Lanzallamas', preciso: 'Llamarada' },
+  squirtle: { pulso: 'Pistola Agua', rafaga: 'Rayo Burbuja', preciso: 'Hidrobomba' },
+  bulbasaur: { pulso: 'Hoja Afilada', rafaga: 'Bala Semilla', preciso: 'Rayo Solar' },
+};
+
 export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: string; descripcionHabilidad: string }> = {
   pikachu: { nombre: 'Pikachu', habilidad: 'Destello', descripcionHabilidad: 'Lanza una esfera que detona tras 0,8 s y ciega hasta 1,2 s a los enemigos con línea de visión en 8 m. Mirar en dirección opuesta reduce el efecto a 0,3 s. No afecta a aliados.' },
   charmander: { nombre: 'Charmander', habilidad: 'Ascua', descripcionHabilidad: 'Proyectil que crea una zona ígnea de 2,5 m de radio durante 5 s al tocar el suelo. Inflige 8 PV/s a los enemigos dentro. Las zonas superpuestas no acumulan daño.' },

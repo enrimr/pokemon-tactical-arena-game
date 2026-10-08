@@ -55,9 +55,18 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   Cabeza ×1,5. Sin fuego amigo, sin daño por caída, sin críticos aleatorios.
 - Economía: inicio de mitad 800 cr; baja +200, instalación +200, desactivación +300; victoria
   +2400; derrota 1900 (+400 por derrota consecutiva, máx. +1200). Tope 6000 cr.
-- Perfiles de ataque (comunes a los cuatro personajes; solo cambia el aspecto elemental):
-  Pulso básico (gratis), Ráfaga táctica (1800), Pulso preciso (2400). Habilidad Q (400),
-  granada de niebla G (300), kit de desactivación (400, solo defensores).
+- Perfiles de ataque comunes a los cuatro personajes (mismo daño/cadencia/alcance; solo
+  cambia la identidad elemental), con nombre de movimiento Pokémon por personaje:
+
+  | Perfil | Pikachu | Charmander | Squirtle | Bulbasaur |
+  | --- | --- | --- | --- | --- |
+  | Pulso básico (gratis) | Impactrueno | Ascuas | Pistola Agua | Hoja Afilada |
+  | Ráfaga táctica (1800) | Chispa | Lanzallamas | Rayo Burbuja | Bala Semilla |
+  | Pulso preciso (2400) | Rayo | Llamarada | Hidrobomba | Rayo Solar |
+
+  El orbe elemental ante la boca/manos indica el perfil equipado (visible también en los
+  rivales): orbe sencillo = pulso, tres chispas orbitando = ráfaga, orbe con anillo = preciso.
+  Habilidad Q (400), granada de niebla G (300), kit de desactivación (400, solo defensores).
 - Habilidades: Pikachu *Destello* (ciega), Charmander *Ascua* (zona de daño), Squirtle
   *Cortina* (niebla), Bulbasaur *Esporas* (ralentiza).
 

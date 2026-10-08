@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  CHARACTERS, CHARACTER_INFO, CharacterId, LobbyState, S2C, SnapPlayer, STR, Team,
+  ATTACK_NAMES, CHARACTERS, CHARACTER_INFO, CharacterId, LobbyState, S2C, SnapPlayer, STR, Team, WEAPONS,
 } from '@pta/shared';
 import { createCharacterModel, CharacterModel } from './models.js';
 import { GameClient } from './game.js';
@@ -53,7 +53,7 @@ class ModelViewer {
     if (this.model) {
       this.model.root.rotation.y = this.t * 0.7;
       this.model.update(
-        { speed: 0, crouch: false, firing: false, reloading: false, throwing: false, interacting: false, dead: false },
+        { speed: 0, crouch: false, firing: false, reloading: false, throwing: false, interacting: false, dead: false, weapon: 'pulso' },
         this.t,
       );
     }
@@ -157,6 +157,7 @@ export class App {
         <div class="cs-view"><canvas id="cs-model" width="380" height="420"></canvas></div>
         <div class="cs-info">
           <h3 id="cs-name"></h3>
+          <p id="cs-attacks" class="hint"></p>
           <p id="cs-ability"></p>
           ${modo === 'solo' ? `<label class="set-row"><span>Dificultad de los bots</span>
             <select id="cs-dif">
@@ -171,6 +172,9 @@ export class App {
     const list = s.querySelector('.cs-list')!;
     const update = (): void => {
       s.querySelector('#cs-name')!.textContent = CHARACTER_INFO[char].nombre;
+      const atk = ATTACK_NAMES[char];
+      s.querySelector('#cs-attacks')!.textContent =
+        `Ataques: ${atk.pulso} (${WEAPONS.pulso.nombre.toLowerCase()}) · ${atk.rafaga} (${WEAPONS.rafaga.precio} cr) · ${atk.preciso} (${WEAPONS.preciso.precio} cr)`;
       s.querySelector('#cs-ability')!.textContent = `${CHARACTER_INFO[char].habilidad}: ${CHARACTER_INFO[char].descripcionHabilidad}`;
       this.viewer?.setCharacter(char);
       list.querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.dataset.c === char));

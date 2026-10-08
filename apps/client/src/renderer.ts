@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { CharacterId, CoreState, MapDef, ProjectileState, SolidBox, SolidTag, Vec3, ZoneState } from '@pta/shared';
+import type { CharacterId, CoreState, MapDef, ProjectileState, SolidBox, SolidTag, Vec3, WeaponId, ZoneState } from '@pta/shared';
 import { HEAD_OFFSET, HEAD_OFFSET_CROUCH, HEAD_SPHERE_RADIUS } from '@pta/shared';
-import { CharacterModel, createCharacterModel, CHARACTER_COLORS, Pose } from './models.js';
+import {
+  CharacterModel, createCharacterModel, CHARACTER_COLORS, Pose,
+  buildAttackIndicator, updateAttackIndicator,
+} from './models.js';
 import { settings } from './settings.js';
 
 const TAG_STYLE: Record<SolidTag, { color: number; roughness?: number; emissive?: number }> = {
@@ -36,6 +39,7 @@ export interface PlayerView {
   interacting: boolean;
   esBot: boolean;
   nombre: string;
+  weapon: WeaponId;
 }
 
 interface TracerFx { mesh: THREE.Mesh; until: number; }
@@ -58,7 +62,10 @@ export class GameRenderer {
   private fpGroup = new THREE.Group();
   private fpPawL!: THREE.Mesh;
   private fpPawR!: THREE.Mesh;
-  private fpOrb!: THREE.Mesh;
+  private fpIndicator = buildAttackIndicator(0xffe84a, 0.32);
+  private fpWeapon: WeaponId = 'pulso';
+  private fpReloading = false;
+  private fpTime = 0;
   private recoil = 0;
   private debugHeads: THREE.Mesh[] = [];
   debugHitboxes = false;
@@ -289,17 +296,20 @@ export class GameRenderer {
     this.fpPawR.scale.set(0.028, 0.022, 0.05);
     this.fpPawL.position.set(-0.16, -0.155, -0.32);
     this.fpPawR.position.set(0.16, -0.155, -0.32);
-    this.fpOrb = new THREE.Mesh(paw, new THREE.MeshBasicMaterial({ color: 0xffe84a, transparent: true, opacity: 0.0 }));
-    this.fpOrb.scale.setScalar(0.025);
-    this.fpOrb.position.set(0, -0.13, -0.45);
-    this.fpGroup.add(this.fpPawL, this.fpPawR, this.fpOrb);
+    this.fpIndicator.group.position.set(0, -0.165, -0.52);
+    this.fpGroup.add(this.fpPawL, this.fpPawR, this.fpIndicator.group);
     this.camera.add(this.fpGroup);
+  }
+
+  setFirstPersonWeapon(w: WeaponId, reloading: boolean): void {
+    this.fpWeapon = w;
+    this.fpReloading = reloading;
   }
 
   setFirstPersonCharacter(char: CharacterId): void {
     const color = { pikachu: 0xf7d02c, charmander: 0xee8130, squirtle: 0x6390f0, bulbasaur: 0x59b5a2 }[char];
     (this.fpPawL.material as THREE.MeshStandardMaterial).color.set(color);
-    (this.fpOrb.material as THREE.MeshBasicMaterial).color.set(CHARACTER_COLORS[char]);
+    for (const m of this.fpIndicator.mats) m.color.set(CHARACTER_COLORS[char]);
   }
 
   private buildCore(): THREE.Group {
@@ -353,6 +363,7 @@ export class GameRenderer {
         throwing: v.throwing,
         interacting: v.interacting,
         dead: !v.alive,
+        weapon: v.weapon,
       };
       model.update(pose, time + v.id * 1.7);
     }
@@ -429,8 +440,6 @@ export class GameRenderer {
 
   fireRecoil(amount: number): void {
     this.recoil = Math.min(0.08, this.recoil + amount * 0.03);
-    (this.fpOrb.material as THREE.MeshBasicMaterial).opacity = 1;
-    this.fpOrb.scale.setScalar(0.05);
   }
 
   // ===== Zonas y proyectiles =====
@@ -571,8 +580,8 @@ export class GameRenderer {
     });
 
     this.recoil *= Math.exp(-dt * 10);
-    const orbMat = this.fpOrb.material as THREE.MeshBasicMaterial;
-    orbMat.opacity *= Math.exp(-dt * 8);
+    this.fpTime += dt;
+    updateAttackIndicator(this.fpIndicator, this.fpWeapon, this.fpTime, this.recoil > 0.025, this.fpReloading);
     this.fpGroup.position.z = this.recoil * 1.5;
     this.fpPawL.position.y = -0.155 + this.recoil;
     this.fpPawR.position.y = -0.155 + this.recoil;

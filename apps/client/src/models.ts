@@ -1,11 +1,15 @@
 import * as THREE from 'three';
-import type { CharacterId } from '@pta/shared';
+import type { CharacterId, WeaponId } from '@pta/shared';
 
 /**
  * Modelos 3D procedurales de los cuatro personajes (generados localmente por código;
  * ver ASSET_SOURCES.md). Cada modelo se construye por partes (cabeza, extremidades,
  * cola, rasgos) para poder animarlo: reposo, desplazamiento, ataque, recarga,
  * habilidad y debilitamiento. Altura visual ≈1,4 m dentro de la cápsula de 1,5 m.
+ *
+ * Cada personaje muestra ante la boca/manos un «orbe de ataque» cuya forma indica el
+ * perfil equipado: orbe sencillo (pulso), tres chispas orbitando (ráfaga) u orbe
+ * grande con anillo (preciso). El color es el elemental del personaje.
  */
 
 export interface Pose {
@@ -16,6 +20,7 @@ export interface Pose {
   throwing: boolean;    // usó habilidad/granada hace <300 ms
   interacting: boolean;
   dead: boolean;
+  weapon: WeaponId;
 }
 
 export interface CharacterModel {
@@ -67,12 +72,95 @@ function cyl(r: number, h: number, color: number): THREE.Mesh {
   return m;
 }
 
-function eyes(head: THREE.Object3D, y: number, z: number, sep: number, r = 0.045, color = 0x222222): void {
+/** Ojos con esclerótica blanca y pupila de color (mirando a -Z). */
+function eyes(head: THREE.Object3D, y: number, z: number, sep: number, r = 0.055, pupilColor = 0x222222): void {
   for (const s of [-1, 1]) {
-    const e = sphere(r, color);
-    e.position.set(sep * s, y, z);
-    head.add(e);
+    const white = sphere(r, 0xffffff, 1, 1.15, 0.55);
+    white.position.set(sep * s, y, z);
+    head.add(white);
+    const pupil = sphere(r * 0.55, pupilColor, 1, 1, 0.6);
+    pupil.position.set(sep * s, y, z - r * 0.45);
+    head.add(pupil);
+    const glint = sphere(r * 0.18, 0xffffff);
+    glint.position.set(sep * s - 0.015, y + r * 0.3, z - r * 0.75);
+    head.add(glint);
   }
+}
+
+/** Boca: línea oscura fina en la cara frontal. */
+function mouth(head: THREE.Object3D, y: number, z: number, w: number): void {
+  const m = box(w, 0.018, 0.02, 0x4a2d20);
+  m.position.set(0, y, z);
+  m.castShadow = false;
+  head.add(m);
+}
+
+export const CHARACTER_COLORS: Record<CharacterId, number> = {
+  pikachu: 0xffe84a,
+  charmander: 0xff7a2f,
+  squirtle: 0x74c6ff,
+  bulbasaur: 0x8ee67a,
+};
+
+// ===== Indicador de ataque: la forma del orbe revela el perfil equipado =====
+
+interface AttackIndicator {
+  group: THREE.Group;
+  variants: Record<WeaponId, THREE.Group>;
+  mats: THREE.MeshBasicMaterial[];
+}
+
+export function buildAttackIndicator(color: number, scale = 1): AttackIndicator {
+  const group = new THREE.Group();
+  const mats: THREE.MeshBasicMaterial[] = [];
+  const orbMat = (): THREE.MeshBasicMaterial => {
+    const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+    mats.push(m);
+    return m;
+  };
+
+  // Pulso: un orbe sencillo
+  const pulso = new THREE.Group();
+  const o1 = new THREE.Mesh(SPHERE, orbMat());
+  o1.scale.setScalar(0.055 * scale);
+  pulso.add(o1);
+
+  // Ráfaga: tres chispas orbitando
+  const rafaga = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const s = new THREE.Mesh(SPHERE, orbMat());
+    s.scale.setScalar(0.032 * scale);
+    const a = (i / 3) * Math.PI * 2;
+    s.position.set(Math.cos(a) * 0.07 * scale, Math.sin(a) * 0.07 * scale, 0);
+    rafaga.add(s);
+  }
+
+  // Preciso: orbe grande con anillo
+  const preciso = new THREE.Group();
+  const big = new THREE.Mesh(SPHERE, orbMat());
+  big.scale.setScalar(0.08 * scale);
+  preciso.add(big);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.13 * scale, 0.012 * scale, 6, 24), orbMat());
+  preciso.add(ring);
+
+  group.add(pulso, rafaga, preciso);
+  const variants: Record<WeaponId, THREE.Group> = { pulso, rafaga, preciso };
+  return { group, variants, mats };
+}
+
+export function updateAttackIndicator(ind: AttackIndicator, weapon: WeaponId, time: number, firing: boolean, reloading: boolean): void {
+  for (const [k, g] of Object.entries(ind.variants) as [WeaponId, THREE.Group][]) {
+    g.visible = k === weapon;
+  }
+  const active = ind.variants[weapon];
+  // Animación: giro de chispas/anillo y latido suave
+  active.rotation.z = time * (weapon === 'rafaga' ? 3.2 : 1.1);
+  active.rotation.y = weapon === 'preciso' ? time * 1.7 : 0;
+  const pulse = 1 + Math.sin(time * 5) * 0.08;
+  const boost = firing ? 1.8 : 1;
+  active.scale.setScalar(pulse * boost);
+  const op = reloading ? 0.25 + Math.abs(Math.sin(time * 12)) * 0.5 : firing ? 1 : 0.8;
+  for (const m of ind.mats) m.opacity = op;
 }
 
 interface Rig {
@@ -87,124 +175,145 @@ interface Rig {
   legBR?: THREE.Group;
   tail?: THREE.Group;
   flame?: THREE.Mesh;
-  orb: THREE.Mesh;        // orbe de energía (recarga/ataque)
+  indicator: AttackIndicator;
   muzzle: THREE.Object3D;
   quad: boolean;
 }
 
-function makeOrb(color: number): THREE.Mesh {
-  const g = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0 }));
-  g.scale.setScalar(0.09);
-  return g;
+function attachIndicator(body: THREE.Group, color: number, x: number, y: number, z: number): { muzzle: THREE.Object3D; indicator: AttackIndicator } {
+  const muzzle = new THREE.Object3D();
+  muzzle.position.set(x, y, z);
+  const indicator = buildAttackIndicator(color);
+  muzzle.add(indicator.group);
+  body.add(muzzle);
+  return { muzzle, indicator };
 }
 
-// ===== Pikachu: amarillo, orejas largas con punta negra, mejillas rojas, cola en rayo =====
+// ===== Pikachu: amarillo, orejas largas de punta negra, mejillas rojas, rayas, cola en rayo =====
 function buildPikachu(): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const YELLOW = 0xf7d02c;
+  const BROWN = 0x9a6a2f;
 
-  const torso = sphere(0.33, YELLOW, 1, 1.2, 0.92);
-  torso.position.y = 0.62;
+  const torso = sphere(0.32, YELLOW, 1, 1.22, 0.92);
+  torso.position.y = 0.6;
   body.add(torso);
+  // Rayas marrones de la espalda
+  for (const [y, w] of [[0.74, 0.3], [0.6, 0.36]] as const) {
+    const stripe = box(w, 0.07, 0.1, BROWN);
+    stripe.position.set(0, y, 0.26);
+    body.add(stripe);
+  }
 
   const head = new THREE.Group();
-  head.position.y = 1.08;
+  head.position.y = 1.1;
   body.add(head);
-  const skull = sphere(0.3, YELLOW, 1, 0.95, 0.95);
+  const skull = sphere(0.3, YELLOW, 1, 0.92, 0.95);
   head.add(skull);
-  eyes(head, 0.08, -0.24, 0.13, 0.05);
+  eyes(head, 0.07, -0.24, 0.13, 0.055, 0x1c1c1c);
+  mouth(head, -0.1, -0.285, 0.1);
   for (const s of [-1, 1]) {
-    const cheek = sphere(0.07, 0xdd3b3b, 1, 1, 0.4);
-    cheek.position.set(0.22 * s, -0.04, -0.2);
+    const cheek = sphere(0.075, 0xdd3b3b, 1, 1, 0.4);
+    cheek.position.set(0.22 * s, -0.05, -0.2);
     head.add(cheek);
     const ear = new THREE.Group();
-    ear.position.set(0.16 * s, 0.22, 0);
-    ear.rotation.z = -0.5 * s;
-    const earBase = cone(0.085, 0.46, YELLOW);
-    earBase.position.y = 0.23;
-    const earTip = cone(0.055, 0.17, 0x1c1c1c);
-    earTip.position.y = 0.46;
+    ear.position.set(0.14 * s, 0.2, 0.02);
+    ear.rotation.z = -0.32 * s;
+    ear.rotation.x = 0.12;
+    const earBase = cone(0.08, 0.52, YELLOW);
+    earBase.position.y = 0.26;
+    const earTip = cone(0.052, 0.2, 0x1c1c1c);
+    earTip.position.y = 0.54;
     ear.add(earBase, earTip);
     head.add(ear);
   }
-  const nose = sphere(0.025, 0x333333);
-  nose.position.set(0, 0, -0.29);
+  const nose = sphere(0.02, 0x333333);
+  nose.position.set(0, -0.02, -0.3);
   head.add(nose);
 
   const legL = new THREE.Group();
   const legR = new THREE.Group();
   legL.position.set(-0.13, 0.3, 0);
   legR.position.set(0.13, 0.3, 0);
-  for (const [g, s] of [[legL, -1], [legR, 1]] as const) {
+  for (const g of [legL, legR]) {
     const leg = sphere(0.1, YELLOW, 0.8, 1.6, 0.9);
     leg.position.y = -0.15;
     g.add(leg);
-    void s;
+    const foot = sphere(0.07, YELLOW, 1, 0.5, 1.7);
+    foot.position.set(0, -0.3, -0.05);
+    g.add(foot);
   }
   body.add(legL, legR);
 
   const armL = new THREE.Group();
   const armR = new THREE.Group();
-  armL.position.set(-0.3, 0.78, -0.05);
-  armR.position.set(0.3, 0.78, -0.05);
+  armL.position.set(-0.28, 0.76, -0.06);
+  armR.position.set(0.28, 0.76, -0.06);
   for (const g of [armL, armR]) {
-    const arm = sphere(0.075, YELLOW, 0.9, 1.5, 0.9);
+    const arm = sphere(0.07, YELLOW, 0.9, 1.5, 0.9);
     arm.position.y = -0.1;
     g.add(arm);
   }
   body.add(armL, armR);
 
-  // Cola en rayo: segmentos planos en zigzag
+  // Cola en rayo: base marrón + zigzag amarillo plano (de canto hacia atrás)
   const tail = new THREE.Group();
-  tail.position.set(0.05, 0.62, 0.3);
+  tail.position.set(0.06, 0.52, 0.3);
+  tail.rotation.x = -0.25;
+  const base = box(0.07, 0.14, 0.045, BROWN);
+  base.position.set(0, 0.04, 0.03);
+  base.rotation.z = 0.5;
+  tail.add(base);
   const segs = [
-    { w: 0.09, h: 0.16, x: 0.03, y: 0.08, rz: 0.6 },
-    { w: 0.12, h: 0.2, x: -0.07, y: 0.22, rz: -0.6 },
-    { w: 0.16, h: 0.26, x: 0.05, y: 0.4, rz: 0.5 },
-    { w: 0.26, h: 0.3, x: -0.03, y: 0.58, rz: -0.2 },
+    { w: 0.2, h: 0.09, x: -0.07, y: 0.16, rz: -0.55 },
+    { w: 0.09, h: 0.22, x: 0.0, y: 0.3, rz: -0.15 },
+    { w: 0.3, h: 0.12, x: 0.09, y: 0.46, rz: -0.5 },
+    { w: 0.22, h: 0.26, x: 0.16, y: 0.6, rz: 0.1 },
   ];
   for (const sgm of segs) {
-    const b = box(sgm.w, sgm.h, 0.035, 0xcfa21a);
-    b.position.set(sgm.x, sgm.y, 0.06);
+    const b = box(sgm.w, sgm.h, 0.04, 0xf7d02c);
+    b.position.set(sgm.x, sgm.y, 0.05);
     b.rotation.z = sgm.rz;
     tail.add(b);
   }
   body.add(tail);
 
-  const orb = makeOrb(0xffe84a);
-  const muzzle = new THREE.Object3D();
-  muzzle.position.set(0, 1.08, -0.34);
-  muzzle.add(orb);
-  body.add(muzzle);
-
-  return { root, body, head, legL, legR, armL, armR, tail, orb, muzzle, quad: false };
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.pikachu, 0, 0.95, -0.58);
+  return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
 }
 
-// ===== Charmander: naranja, vientre crema, hocico, cola con llama =====
+// ===== Charmander: naranja, vientre crema, hocico con sonrisa, garras, cola con llama =====
 function buildCharmander(): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const ORANGE = 0xee8130;
+  const CREAM = 0xf6e3b4;
 
-  const torso = sphere(0.32, ORANGE, 1, 1.25, 0.95);
+  const torso = sphere(0.31, ORANGE, 1, 1.28, 0.95);
   torso.position.y = 0.6;
   body.add(torso);
-  const belly = sphere(0.26, 0xf6e3b4, 0.85, 1.05, 0.5);
-  belly.position.set(0, 0.56, -0.14);
+  const belly = sphere(0.26, CREAM, 0.85, 1.15, 0.5);
+  belly.position.set(0, 0.56, -0.13);
   body.add(belly);
 
   const head = new THREE.Group();
-  head.position.y = 1.1;
+  head.position.y = 1.12;
   body.add(head);
-  const skull = sphere(0.26, ORANGE, 1, 1, 1);
+  const skull = sphere(0.25, ORANGE, 1, 1.02, 1);
   head.add(skull);
-  const snout = sphere(0.13, ORANGE, 1, 0.7, 1.1);
-  snout.position.set(0, -0.07, -0.2);
+  const snout = sphere(0.14, ORANGE, 1, 0.65, 1.15);
+  snout.position.set(0, -0.09, -0.18);
   head.add(snout);
-  eyes(head, 0.09, -0.2, 0.12, 0.045, 0x2b55aa);
+  eyes(head, 0.08, -0.19, 0.12, 0.05, 0x2b55aa);
+  mouth(head, -0.12, -0.32, 0.14);
+  for (const s of [-1, 1]) {
+    const nostril = sphere(0.012, 0x7a3c12);
+    nostril.position.set(0.045 * s, -0.05, -0.33);
+    head.add(nostril);
+  }
 
   const legL = new THREE.Group();
   const legR = new THREE.Group();
@@ -214,79 +323,89 @@ function buildCharmander(): Rig {
     const leg = sphere(0.11, ORANGE, 0.9, 1.5, 1);
     leg.position.y = -0.14;
     g.add(leg);
+    const foot = sphere(0.08, ORANGE, 1, 0.5, 1.5);
+    foot.position.set(0, -0.28, -0.04);
+    g.add(foot);
   }
   body.add(legL, legR);
 
   const armL = new THREE.Group();
   const armR = new THREE.Group();
-  armL.position.set(-0.29, 0.75, -0.05);
-  armR.position.set(0.29, 0.75, -0.05);
-  for (const g of [armL, armR]) {
-    const arm = sphere(0.08, ORANGE, 0.9, 1.4, 0.9);
+  armL.position.set(-0.28, 0.76, -0.05);
+  armR.position.set(0.28, 0.76, -0.05);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    const arm = sphere(0.075, ORANGE, 0.9, 1.45, 0.9);
     arm.position.y = -0.1;
     g.add(arm);
+    for (let c = 0; c < 2; c++) {
+      const claw = cone(0.016, 0.05, 0xffffff);
+      claw.position.set(s * 0.015 * (c === 0 ? 1 : -1), -0.21, -0.02 - c * 0.03);
+      claw.rotation.x = Math.PI;
+      g.add(claw);
+    }
   }
   body.add(armL, armR);
 
   const tail = new THREE.Group();
-  tail.position.set(0, 0.42, 0.26);
-  const t1 = cyl(0.065, 0.38, ORANGE);
-  t1.rotation.x = 1.25;
-  t1.position.set(0, 0.02, 0.16);
-  const t2 = cyl(0.045, 0.24, ORANGE);
-  t2.rotation.x = 0.35;
-  t2.position.set(0, 0.1, 0.34);
+  tail.position.set(0, 0.4, 0.28);
+  const t1 = cyl(0.06, 0.4, ORANGE);
+  t1.rotation.x = 1.45;
+  t1.position.set(0, 0.0, 0.2);
+  const t2 = cyl(0.042, 0.26, ORANGE);
+  t2.rotation.x = 0.9;
+  t2.position.set(0, 0.08, 0.44);
   tail.add(t1, t2);
   const flame = new THREE.Mesh(CONE, new THREE.MeshBasicMaterial({ color: 0xffa02f, transparent: true, opacity: 0.95 }));
   flame.scale.set(0.07, 0.17, 0.07);
-  flame.position.set(0, 0.3, 0.4);
+  flame.position.set(0, 0.26, 0.56);
   tail.add(flame);
   const flameCore = new THREE.Mesh(CONE, new THREE.MeshBasicMaterial({ color: 0xffe84a }));
   flameCore.scale.set(0.035, 0.09, 0.035);
-  flameCore.position.set(0, 0.26, 0.4);
+  flameCore.position.set(0, 0.22, 0.56);
   tail.add(flameCore);
   body.add(tail);
 
-  const orb = makeOrb(0xff7a2f);
-  const muzzle = new THREE.Object3D();
-  muzzle.position.set(0, 1.03, -0.38);
-  muzzle.add(orb);
-  body.add(muzzle);
-
-  return { root, body, head, legL, legR, armL, armR, tail, flame, orb, muzzle, quad: false };
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.charmander, 0, 0.93, -0.6);
+  return { root, body, head, legL, legR, armL, armR, tail, flame, indicator, muzzle, quad: false };
 }
 
-// ===== Squirtle: azul, caparazón marrón con borde claro, vientre segmentado, cola curvada =====
+// ===== Squirtle: azul, caparazón marrón con borde crema, vientre liso, cola rizada =====
 function buildSquirtle(): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const BLUE = 0x6390f0;
+  const CREAM = 0xf3ead0;
+  const SHELL = 0x8a5a2b;
 
-  const torso = sphere(0.3, BLUE, 1, 1.2, 0.9);
+  const torso = sphere(0.29, BLUE, 1, 1.2, 0.9);
   torso.position.y = 0.58;
   body.add(torso);
-  const shell = sphere(0.3, 0x8a5a2b, 1.05, 1.1, 0.75);
-  shell.position.set(0, 0.6, 0.14);
+  const shell = sphere(0.3, SHELL, 1.08, 1.12, 0.72);
+  shell.position.set(0, 0.6, 0.15);
   body.add(shell);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.045, 8, 20), mat(0xf3ead0));
-  rim.position.set(0, 0.6, 0.02);
-  rim.rotation.x = 0.1;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 22), mat(CREAM));
+  rim.position.set(0, 0.6, 0.0);
   rim.castShadow = true;
   body.add(rim);
-  // Vientre segmentado
-  for (let i = 0; i < 3; i++) {
-    const seg = box(0.3 - i * 0.05, 0.09, 0.06, 0xf3ead0);
-    seg.position.set(0, 0.42 + i * 0.12, -0.235);
-    body.add(seg);
+  // Vientre: placa crema curvada con costuras
+  const plate = sphere(0.24, CREAM, 0.82, 1.02, 0.42);
+  plate.position.set(0, 0.56, -0.14);
+  body.add(plate);
+  for (const y of [0.5, 0.62]) {
+    const seam = box(0.3, 0.014, 0.02, 0xc9b98a);
+    seam.position.set(0, y, -0.238);
+    seam.castShadow = false;
+    body.add(seam);
   }
 
   const head = new THREE.Group();
-  head.position.y = 1.05;
+  head.position.y = 1.07;
   body.add(head);
   const skull = sphere(0.27, BLUE, 1, 1, 1);
   head.add(skull);
-  eyes(head, 0.08, -0.21, 0.12, 0.05, 0x7a3b2e);
+  eyes(head, 0.08, -0.21, 0.12, 0.055, 0x7a3b2e);
+  mouth(head, -0.08, -0.26, 0.12);
 
   const legL = new THREE.Group();
   const legR = new THREE.Group();
@@ -296,13 +415,16 @@ function buildSquirtle(): Rig {
     const leg = sphere(0.11, BLUE, 0.9, 1.4, 1);
     leg.position.y = -0.12;
     g.add(leg);
+    const foot = sphere(0.08, BLUE, 1, 0.5, 1.4);
+    foot.position.set(0, -0.25, -0.04);
+    g.add(foot);
   }
   body.add(legL, legR);
 
   const armL = new THREE.Group();
   const armR = new THREE.Group();
-  armL.position.set(-0.28, 0.72, -0.05);
-  armR.position.set(0.28, 0.72, -0.05);
+  armL.position.set(-0.27, 0.72, -0.05);
+  armR.position.set(0.27, 0.72, -0.05);
   for (const g of [armL, armR]) {
     const arm = sphere(0.08, BLUE, 0.9, 1.4, 0.9);
     arm.position.y = -0.1;
@@ -310,66 +432,72 @@ function buildSquirtle(): Rig {
   }
   body.add(armL, armR);
 
-  // Cola curvada: arco de toro
+  // Cola rizada gruesa
   const tail = new THREE.Group();
-  const curl = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.06, 8, 14, Math.PI * 1.4), mat(BLUE));
-  curl.position.set(0, 0.42, 0.34);
+  const curl = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.075, 8, 14, Math.PI * 1.5), mat(BLUE));
+  curl.position.set(0, 0.36, 0.36);
   curl.rotation.y = Math.PI / 2;
+  curl.rotation.z = 0.4;
   curl.castShadow = true;
   tail.add(curl);
   body.add(tail);
 
-  const orb = makeOrb(0x74c6ff);
-  const muzzle = new THREE.Object3D();
-  muzzle.position.set(0, 1.0, -0.36);
-  muzzle.add(orb);
-  body.add(muzzle);
-
-  return { root, body, head, legL, legR, armL, armR, tail, orb, muzzle, quad: false };
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.squirtle, 0, 0.92, -0.58);
+  return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
 }
 
-// ===== Bulbasaur: cuadrúpedo turquesa, manchas, ojos rojizos, bulbo verde separado =====
+// ===== Bulbasaur: cuadrúpedo turquesa con manchas, ojos rojizos, bulbo con hojas =====
 function buildBulbasaur(): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const TEAL = 0x59b5a2;
+  const SPOT = 0x2f7465;
 
   const torso = sphere(0.34, TEAL, 1.15, 0.85, 1.25);
   torso.position.y = 0.5;
   body.add(torso);
-  // Manchas
-  const spots = [[-0.2, 0.62, -0.25], [0.24, 0.55, 0.1], [-0.15, 0.42, 0.3]] as const;
+  const spots: [number, number, number][] = [
+    [-0.2, 0.62, -0.25], [0.24, 0.55, 0.1], [-0.15, 0.42, 0.3], [0.18, 0.6, -0.3], [-0.3, 0.52, 0.05],
+  ];
   for (const [x, y, z] of spots) {
-    const sp = sphere(0.075, 0x2f7465, 1, 0.5, 1);
+    const sp = sphere(0.07, SPOT, 1, 0.45, 1);
     sp.position.set(x, y, z);
     body.add(sp);
   }
 
   const head = new THREE.Group();
-  head.position.set(0, 0.78, -0.42);
+  head.position.set(0, 0.78, -0.44);
   body.add(head);
-  const skull = sphere(0.26, TEAL, 1.1, 0.9, 0.95);
+  const skull = sphere(0.27, TEAL, 1.12, 0.88, 0.95);
   head.add(skull);
-  eyes(head, 0.07, -0.2, 0.14, 0.05, 0xc23b22);
+  eyes(head, 0.08, -0.2, 0.15, 0.06, 0xc23b22);
+  mouth(head, -0.1, -0.24, 0.2);
   for (const s of [-1, 1]) {
-    const ear = cone(0.07, 0.14, TEAL);
-    ear.position.set(0.14 * s, 0.24, 0.02);
+    const ear = cone(0.085, 0.16, TEAL);
+    ear.position.set(0.15 * s, 0.24, 0.03);
+    ear.rotation.z = -0.2 * s;
     head.add(ear);
+    const earIn = cone(0.045, 0.08, SPOT);
+    earIn.position.set(0.15 * s, 0.24, 0.025);
+    head.add(earIn);
   }
 
   // Bulbo claramente separado del cuerpo
   const bulb = new THREE.Group();
-  bulb.position.set(0, 0.86, 0.22);
-  const bulbCore = sphere(0.22, 0x4caf50, 1, 1.15, 1);
+  bulb.position.set(0, 0.88, 0.24);
+  const bulbCore = sphere(0.24, 0x4caf50, 1, 1.18, 1);
   bulb.add(bulbCore);
-  for (let i = 0; i < 4; i++) {
-    const leaf = cone(0.1, 0.26, 0x2e7d32);
-    const a = (i / 4) * Math.PI * 2;
-    leaf.position.set(Math.cos(a) * 0.14, 0.16, Math.sin(a) * 0.14);
-    leaf.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
+  for (let i = 0; i < 6; i++) {
+    const leaf = cone(0.1, 0.3, 0x2e7d32);
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    leaf.position.set(Math.cos(a) * 0.16, 0.14, Math.sin(a) * 0.16);
+    leaf.rotation.set(Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0);
     bulb.add(leaf);
   }
+  const bulbTip = cone(0.05, 0.1, 0x2e7d32);
+  bulbTip.position.y = 0.32;
+  bulb.add(bulbTip);
   body.add(bulb);
 
   const mkLeg = (x: number, z: number): THREE.Group => {
@@ -386,13 +514,8 @@ function buildBulbasaur(): Rig {
   const legBL = mkLeg(-0.24, 0.32);
   const legBR = mkLeg(0.24, 0.32);
 
-  const orb = makeOrb(0x8ee67a);
-  const muzzle = new THREE.Object3D();
-  muzzle.position.set(0, 0.82, -0.72);
-  muzzle.add(orb);
-  body.add(muzzle);
-
-  return { root, body, head, legL, legR, legBL, legBR, orb, muzzle, quad: true };
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.bulbasaur, 0, 0.78, -0.9);
+  return { root, body, head, legL, legR, legBL, legBR, indicator, muzzle, quad: true };
 }
 
 const BUILDERS: Record<CharacterId, () => Rig> = {
@@ -404,7 +527,6 @@ const BUILDERS: Record<CharacterId, () => Rig> = {
 
 export function createCharacterModel(id: CharacterId): CharacterModel {
   const rig = BUILDERS[id]();
-  // Escalar: bípedos ~1,38 m de alto (cabeza ~1,3), cuadrúpedo más bajo y largo
   const update = (pose: Pose, time: number): void => {
     const r = rig;
     const walk = Math.min(1, pose.speed);
@@ -433,23 +555,18 @@ export function createCharacterModel(id: CharacterId): CharacterModel {
     // Agacharse: compresión vertical
     const targetS = pose.crouch ? 0.72 : 1;
     r.root.scale.y += (targetS - r.root.scale.y) * 0.25;
-    // Ataque: retroceso y orbe
-    const orbMat = r.orb.material as THREE.MeshBasicMaterial;
+    // Indicador del ataque equipado
+    updateAttackIndicator(r.indicator, pose.weapon, time, pose.firing, pose.reloading);
+    // Ataque: pequeño retroceso de cabeza
     if (pose.firing) {
       r.head.position.z = 0.05;
-      orbMat.opacity = 0.95;
-      r.orb.scale.setScalar(0.13);
     } else {
       r.head.position.z *= 0.8;
-      orbMat.opacity = pose.reloading ? 0.4 + Math.sin(time * 14) * 0.3 : orbMat.opacity * 0.85;
-      r.orb.scale.setScalar(pose.reloading ? 0.09 + Math.sin(time * 14) * 0.03 : 0.09);
     }
     // Lanzar habilidad: brazo arriba (o cabeceo en cuadrúpedo)
     if (pose.throwing) {
       if (r.armR) r.armR.rotation.x = -2.2;
       else r.head.rotation.x = -0.5;
-    } else if (!r.quad) {
-      r.head.rotation.x *= 0.8;
     }
     if (pose.interacting) {
       r.head.rotation.x = 0.5; // mirar al suelo mientras instala/desactiva
@@ -470,10 +587,3 @@ export function createCharacterModel(id: CharacterId): CharacterModel {
     },
   };
 }
-
-export const CHARACTER_COLORS: Record<CharacterId, number> = {
-  pikachu: 0xffe84a,
-  charmander: 0xff7a2f,
-  squirtle: 0x74c6ff,
-  bulbasaur: 0x8ee67a,
-};

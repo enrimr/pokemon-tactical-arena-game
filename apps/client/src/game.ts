@@ -305,6 +305,7 @@ export class GameClient {
       this.localReload = self.reloadTicksLeft ?? 0;
       this.self.weapon = (self.weapon ?? 'pulso');
       this.renderer.setFirstPersonCharacter(self.character);
+      this.renderer.setFirstPersonWeapon(this.self.weapon, (self.reloadTicksLeft ?? 0) > 0);
       if (!self.alive && this.spectateId === null && this.opts.modo !== 'entrenamiento') {
         this.pickSpectate(1);
       }
@@ -589,6 +590,7 @@ export class GameClient {
         throwing: this.time - (this.lastThrowAt.get(id) ?? -9) < 0.3,
         interacting: (p.interactTicksLeft ?? 0) > 0 || this.time - (this.lastInteractAt.get(id) ?? -9) < 0.6,
         esBot: p.esBot, nombre: p.nombre,
+        weapon: p.weapon ?? 'pulso',
       });
       if (this.spectateId === id) {
         specView = { pos: v3(pos.x, pos.y + (p.crouching ? CAMERA_HEIGHT_CROUCH : CAMERA_HEIGHT), pos.z), yaw, pitch };

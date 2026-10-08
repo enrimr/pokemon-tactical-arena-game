@@ -1014,11 +1014,12 @@ export class GameSim {
       };
       // El marcador y los resultados necesitan bajas/muertes de todos
       base.kills = p.kills; base.deaths = p.deaths; base.assists = p.assists; base.damageDealt = Math.round(p.damageDealt);
+      // El ataque equipado es visible para todos (como ver el arma del rival)
+      base.weapon = p.weapon;
       if (ally) {
         base.hp = Math.ceil(p.hp);
         base.shield = Math.ceil(p.shield);
         base.credits = p.credits;
-        base.weapon = p.weapon;
         base.ammo = p.ammo;
         base.reloadTicksLeft = p.reloadTicksLeft;
         base.abilityCharges = p.abilityCharges;
