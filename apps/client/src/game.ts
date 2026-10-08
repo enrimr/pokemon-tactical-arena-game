@@ -165,14 +165,17 @@ export class GameClient {
   private onKey(code: string): void {
     const b = settings.binds;
     if (code === b.comprar) {
+      if (this.pauseVisible) return; // con la pausa abierta, B no hace nada
       const selfSnap = this.selfSnap();
       if ((this.latest?.match.phase === 'prep' || this.opts.modo === 'entrenamiento') && selfSnap?.alive) {
         if (this.hud.buyVisible) {
           this.hud.showBuyMenu(false);
           this.input.requestLock();
         } else {
+          // Marcar la compra como visible ANTES de liberar el ratón: así el
+          // pointerlockchange no interpreta la liberación como pausa (Esc).
+          this.refreshBuy();
           document.exitPointerLock();
-          setTimeout(() => this.refreshBuy(), 50);
         }
       }
     } else if (code === 'F3') {
@@ -685,7 +688,12 @@ export class GameClient {
 
   // ===== Pausa =====
 
+  private pauseVisible = false;
+
   private showPause(show: boolean): void {
+    this.pauseVisible = show;
+    // La pausa y la compra son excluyentes
+    if (show && this.hud.buyVisible) this.hud.showBuyMenu(false);
     this.pauseOverlay.classList.toggle('hidden', !show);
     if (!show) {
       this.pauseOverlay.innerHTML = '';
