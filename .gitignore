@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+pokemon-tactical-arena.zip
+tools/_*.mjs
