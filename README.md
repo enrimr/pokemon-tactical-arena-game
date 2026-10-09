@@ -100,6 +100,14 @@ resultado de pruebas en `TEST_REPORT.md`.
 - El objetivo de 60 FPS a 1080p con GPU integrada es una aspiración medida solo en el entorno
   de desarrollo (ver TEST_REPORT.md); no se garantiza en todo hardware.
 
+## Despliegue (Railway)
+
+El repo incluye `railway.json`: un único servicio construye todo (`npm run build`) y arranca
+`npm start`, que sirve el cliente compilado y el WebSocket desde el mismo origen en `$PORT`
+(healthcheck en `/salud`). Al desplegar desde GitHub, usa **un solo servicio apuntando a la
+raíz del repo** — no separes `apps/client` y `apps/server` en servicios distintos, porque el
+cliente espera el WebSocket en su propio origen.
+
 ## Empaquetado reproducible
 
 ```bash
