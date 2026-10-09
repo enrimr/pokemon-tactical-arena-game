@@ -25,6 +25,11 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 9. ✔ README, docs (ARQUITECTURA/DISENO/CONTROLES/PLAN), ASSET_SOURCES, .env.example,
    capturas reales en docs/capturas/, ZIP reproducible (tools/package_zip.sh).
 
+## Despliegue
+
+- Railway (GitHub → `main`): un único servicio con `railway.json` (build completa, `npm start`,
+  healthcheck `/salud`). Dominio: https://ptaserver-production.up.railway.app
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.
