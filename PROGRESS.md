@@ -29,6 +29,12 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 
 - Railway (GitHub → `main`): un único servicio con `railway.json` (build completa, `npm start`,
   healthcheck `/salud`). Dominio: https://ptaserver-production.up.railway.app
+- Región: europe-west4, 1 réplica (las salas viven en memoria: no escalar a varias réplicas
+  sin añadir afinidad/estado compartido).
+- Redespliegues sin cortar partidas: el servicio tiene `drainingSeconds=1800` y el servidor
+  maneja SIGTERM (rechaza salas nuevas y espera a que acaben las partidas con humanos, con
+  salida inmediata si no hay ninguna). Limitación: si un jugador pierde la conexión durante
+  el drenado, su reconexión llega a la instancia nueva y no recupera la sala antigua.
 
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 

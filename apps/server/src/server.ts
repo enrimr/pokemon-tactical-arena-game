@@ -30,6 +30,9 @@ const MIME: Record<string, string> = {
 };
 
   const rooms = new Map<string, Room>();
+  // Drenado elegante: con SIGTERM (redeploy) se rechazan salas nuevas y el proceso
+  // sigue vivo hasta que terminan las partidas en curso (Railway: drainingSeconds).
+  let draining = false;
 
   const server = createServer(async (req, res) => {
   try {
@@ -84,6 +87,10 @@ const MIME: Record<string, string> = {
     }
     const m = msg as { t?: string; nombre?: unknown; codigo?: unknown; token?: unknown };
     if (m.t === 'crear') {
+      if (draining) {
+        ws.send(encode({ t: 'error', codigo: 'salaLlena', msg: 'El servidor se está actualizando; prueba de nuevo en un par de minutos.' }));
+        return;
+      }
       if (!isValidAlias(m.nombre)) {
         ws.send(encode({ t: 'error', codigo: 'nombreInvalido', msg: 'Alias no válido' }));
         return;
@@ -127,6 +134,28 @@ const MIME: Record<string, string> = {
 
   ws.on('close', () => clearTimeout(timeout));
 });
+
+  process.on('SIGTERM', () => {
+    if (draining) return;
+    draining = true;
+    const activas = [...rooms.values()].filter((r) => r.humanCountConnected() > 0).length;
+    console.log(`[pta] SIGTERM: drenando. Salas con humanos: ${activas}. No se aceptan salas nuevas; se espera a que terminen las partidas.`);
+    const check = setInterval(() => {
+      const vivas = [...rooms.values()].filter((r) => r.humanCountConnected() > 0).length;
+      if (vivas === 0) {
+        console.log('[pta] Drenado completo: sin partidas con humanos. Saliendo.');
+        clearInterval(check);
+        for (const room of rooms.values()) room.destroy();
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 2000);
+      }
+    }, 5000);
+    // Red de seguridad: salir antes de que Railway envíe SIGKILL (drainingSeconds=1800)
+    setTimeout(() => {
+      console.log('[pta] Fin de la ventana de drenado. Saliendo.');
+      process.exit(0);
+    }, 28 * 60 * 1000);
+  });
 
   return new Promise((resolve) => {
     server.listen(port, () => {
