@@ -48,6 +48,11 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   de Nintendo/Creatures/GAME FREAK (ASSET_SOURCES.md). Descodificador Draco copiado de
   `three` (npm) en `predev`/`prebuild` (`tools/copiar-draco.mjs`).
 - Sin descarga local ni conexión, el ajuste no hace nada y se usan los modelos propios.
+- Animación de los oficiales: clips del archivo cuando existen (Bulbasaur: idle/run/fight;
+  Pikachu: «Impactrueno» congelado como pose y disparado al atacar); si no hay clips
+  (Charmander, Squirtle), ciclo de andar y gesto de ataque procedurales sobre los huesos
+  (`LThigh`/`RArm`/`Head`/`Jaw`/`Tail…`), con correcciones de pose de reposo por personaje
+  (Charmander venía en T con una pierna alzada y la cola arrastrando).
 
 ## Soporte móvil/táctil (2026-10-12)
 

@@ -9,14 +9,20 @@ import {
 } from './models.js';
 
 /**
- * Carga opcional de los modelos oficiales (.glb descargados por el usuario con
- * `npm run modelos:oficiales`; ver ASSET_SOURCES.md). Si los archivos no están
- * en /modelos-oficiales/, el juego sigue con los modelos procedurales propios.
+ * Carga opcional de los modelos oficiales (ver ASSET_SOURCES.md). Prioridad:
+ * .glb descargados en local (`npm run modelos:oficiales`); si faltan, el
+ * navegador los obtiene del repositorio público de origen. Si tampoco hay
+ * conexión, el juego sigue con los modelos procedurales propios.
  *
  * Los .glb usan compresión Draco (descodificador local, copiado de three.js)
- * y texturas WebP (soporte nativo del navegador). Son mallas con esqueleto:
- * se clonan con SkeletonUtils y, si traen animaciones, se reproducen con un
- * AnimationMixer (idle/andar); si no, se aplica un balanceo por código.
+ * y texturas WebP. Son mallas con esqueleto: se clonan con SkeletonUtils.
+ * Animación por archivo:
+ *  - clips reconocibles (idle/walk/run/fight): se reproducen y mezclan;
+ *  - solo clip de ataque (Pikachu, «Impactrueno»): su primer fotograma es la
+ *    pose de reposo y el clip se dispara al atacar;
+ *  - sin clips (Charmander, Squirtle): ciclo de andar y gesto de ataque
+ *    procedurales sobre los huesos (LThigh/RArm/Head/Jaw/Tail…), con
+ *    correcciones de pose de reposo por personaje.
  */
 
 const BASE = '/modelos-oficiales';
@@ -46,6 +52,23 @@ const TARGET_HEIGHT: Record<CharacterId, number> = {
   pikachu: 1.35, charmander: 1.35, squirtle: 1.3, bulbasaur: 1.1,
 };
 
+/**
+ * Correcciones de la pose de reposo (rotaciones locales en radianes sobre el
+ * hueso indicado). La pose de enlace de Charmander viene con los brazos en T
+ * y una pierna levantada; sin clips que la tapen, se endereza aquí.
+ */
+const POSE_FIX: Partial<Record<CharacterId, [string, number, number, number][]>> = {
+  charmander: [
+    ['larm', 0, 0, -0.9],
+    ['rarm', 0, 0, 0.9],
+    ['lthigh', -0.35, 0, 0],
+    ['rthigh', 0.1, 0, 0],
+    ['tail1', -0.45, 0, 0],
+    ['tail2', -0.25, 0, 0],
+    ['tail3', -0.15, 0, 0],
+  ],
+};
+
 const cache = new Map<CharacterId, GLTF>();
 let loader: GLTFLoader | null = null;
 let loadPromise: Promise<boolean> | null = null;
@@ -61,8 +84,8 @@ function getLoader(): GLTFLoader {
 }
 
 /**
- * Intenta cargar los cuatro .glb locales (una sola vez; las llamadas
- * posteriores reutilizan el resultado). Devuelve true si están los cuatro.
+ * Intenta cargar los cuatro .glb (una sola vez; las llamadas posteriores
+ * reutilizan el resultado). Devuelve true si están los cuatro.
  */
 export function preloadOfficialModels(): Promise<boolean> {
   if (loadPromise) return loadPromise;
@@ -97,6 +120,50 @@ export function preloadOfficialModels(): Promise<boolean> {
   return loadPromise;
 }
 
+/** Huesos relevantes para la animación procedural, localizados por nombre. */
+interface Huesos {
+  lThigh?: THREE.Bone;
+  rThigh?: THREE.Bone;
+  lArm?: THREE.Bone;
+  rArm?: THREE.Bone;
+  head?: THREE.Bone;
+  jaw?: THREE.Bone;
+  spine?: THREE.Bone;
+  tail: THREE.Bone[];
+}
+
+function buscarHuesos(root: THREE.Object3D): Huesos {
+  const h: Huesos = { tail: [] };
+  root.traverse((o) => {
+    if (!(o as THREE.Bone).isBone) return;
+    const b = o as THREE.Bone;
+    const n = b.name.toLowerCase();
+    if (n.startsWith('lthigh')) h.lThigh = b;
+    else if (n.startsWith('rthigh')) h.rThigh = b;
+    else if (n.startsWith('larm')) h.lArm = b;
+    else if (n.startsWith('rarm')) h.rArm = b;
+    else if (n.startsWith('head')) h.head = b;
+    else if (n.startsWith('jaw')) h.jaw = b;
+    else if (n.startsWith('spine2')) h.spine = b;
+    else if (/^tail\d/.test(n)) h.tail.push(b);
+  });
+  h.tail.sort((a, b) => a.name.localeCompare(b.name));
+  return h;
+}
+
+/** Rotación relativa aplicada tras la pose base (o tras el mixer). */
+const Q_TMP = new THREE.Quaternion();
+const E_TMP = new THREE.Euler();
+function girar(b: THREE.Bone | undefined, base: Map<THREE.Bone, THREE.Quaternion> | null, x: number, y = 0, z = 0): void {
+  if (!b) return;
+  Q_TMP.setFromEuler(E_TMP.set(x, y, z));
+  if (base) {
+    const q0 = base.get(b);
+    if (q0) b.quaternion.copy(q0);
+  }
+  b.quaternion.multiply(Q_TMP);
+}
+
 /**
  * Crea una instancia del modelo oficial ya cargado, o null si no está en
  * caché (sin descarga, o preload aún en curso): el llamante usará el procedural.
@@ -106,19 +173,31 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
   if (!gltf) return null;
 
   const inner = cloneWithSkeleton(gltf.scene);
+  const huesos = buscarHuesos(inner);
 
-  // Animaciones del archivo: idle + andar mezcladas por velocidad. Si no hay
-  // clips reconocibles, se fija el primer fotograma del primer clip como pose
-  // estática (en algunas extracciones la pose de reposo del esqueleto está rota
-  // y solo las animaciones colocan bien el modelo).
+  // Correcciones de pose de reposo (antes de capturar la base y de medir)
+  for (const [nombre, x, y, z] of POSE_FIX[id] ?? []) {
+    inner.traverse((o) => {
+      if ((o as THREE.Bone).isBone && o.name.toLowerCase().startsWith(nombre)) {
+        (o as THREE.Bone).rotation.x += x;
+        (o as THREE.Bone).rotation.y += y;
+        (o as THREE.Bone).rotation.z += z;
+      }
+    });
+  }
+
+  // Clips del archivo: idle/andar mezclados por velocidad y ataque de un disparo
   let mixer: THREE.AnimationMixer | null = null;
   let idleAction: THREE.AnimationAction | null = null;
   let moveAction: THREE.AnimationAction | null = null;
+  let attackAction: THREE.AnimationAction | null = null;
+  let attackEsPose = false; // el clip de ataque hace también de pose de reposo (Pikachu)
   const clips = gltf.animations;
   if (clips.length) {
     const find = (re: RegExp): THREE.AnimationClip | undefined => clips.find((c) => re.test(c.name));
     const idleClip = find(/idle|wait|reposo/i);
     const moveClip = find(/run/i) ?? find(/walk|andar/i);
+    const attackClip = find(/fight|attack|atk|impactrueno|shot/i);
     mixer = new THREE.AnimationMixer(inner);
     if (idleClip) {
       idleAction = mixer.clipAction(idleClip);
@@ -128,11 +207,38 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
         moveAction.setEffectiveWeight(0);
         moveAction.play();
       }
-      mixer.update(0); // aplicar la pose antes de medir
+      if (attackClip) {
+        attackAction = mixer.clipAction(attackClip);
+        attackAction.setLoop(THREE.LoopOnce, 1);
+      }
+      mixer.update(0);
+    } else if (attackClip) {
+      // Sin idle: el primer fotograma del ataque es la pose de reposo; el clip
+      // completo se reproduce al atacar y al terminar se vuelve a congelar.
+      attackAction = mixer.clipAction(attackClip);
+      attackAction.setLoop(THREE.LoopOnce, 1);
+      attackAction.timeScale = 1.5;
+      attackAction.play();
+      attackAction.paused = true;
+      attackEsPose = true;
+      mixer.addEventListener('finished', () => {
+        attackAction!.reset();
+        attackAction!.paused = true;
+      });
+      mixer.update(0);
     } else {
+      // Clips irreconocibles: congelar el primero como pose estática
       mixer.clipAction(clips[0]).play();
       mixer.update(0);
-      mixer = null; // pose fija: no seguir reproduciendo el clip (sería un ataque en bucle)
+      mixer = null;
+    }
+  }
+
+  // Sin mixer activo, la animación procedural parte de la pose base capturada
+  const baseQ: Map<THREE.Bone, THREE.Quaternion> | null = mixer ? null : new Map();
+  if (baseQ) {
+    for (const b of [huesos.lThigh, huesos.rThigh, huesos.lArm, huesos.rArm, huesos.head, huesos.jaw, huesos.spine, ...huesos.tail]) {
+      if (b) baseQ.set(b, b.quaternion.clone());
     }
   }
 
@@ -154,12 +260,6 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
     if (b) bbox.union(b.clone().applyMatrix4(mesh.matrixWorld));
   });
   const size = bbox.getSize(new THREE.Vector3());
-  // Algunas extracciones vienen con Z como eje vertical: enderezar y remedir
-  if (size.z > size.y * 1.3) {
-    inner.rotation.x = -Math.PI / 2;
-    bbox.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-    bbox.getSize(size);
-  }
   const s = TARGET_HEIGHT[id] / Math.max(size.y, 0.001);
   inner.scale.setScalar(s);
   inner.position.set(
@@ -180,28 +280,75 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
   root.add(muzzle);
 
   let lastTime = -1;
+  let prevFiring = false;
   const update = (pose: Pose, time: number): void => {
     const dt = lastTime < 0 ? 0 : Math.max(0, time - lastTime);
     lastTime = time;
     const walk = Math.min(1, pose.speed);
+    const disparoNuevo = pose.firing && !prevFiring;
+    prevFiring = pose.firing;
+
     if (mixer) {
+      if (attackAction && disparoNuevo) {
+        if (attackEsPose) {
+          attackAction.reset();
+          attackAction.paused = false;
+        } else {
+          attackAction.reset().fadeIn(0.06).play();
+        }
+      }
       if (moveAction && idleAction) {
-        moveAction.setEffectiveWeight(walk);
-        idleAction.setEffectiveWeight(1 - walk);
+        const atacando = attackAction?.isRunning() === true && !attackAction.paused && !attackEsPose;
+        moveAction.setEffectiveWeight(atacando ? walk * 0.3 : walk);
+        idleAction.setEffectiveWeight(atacando ? 0.15 : 1 - walk);
       }
       mixer.update(dt);
+      // Modelos cuya única animación es el ataque (pose congelada): ciclo de
+      // andar procedural sobre la pose que el mixer reescribe cada fotograma
+      if (attackEsPose && attackAction?.paused) {
+        const t = time * 9;
+        const swing = Math.sin(t) * 0.55 * walk;
+        girar(huesos.lThigh, null, swing);
+        girar(huesos.rThigh, null, -swing);
+        girar(huesos.lArm, null, -swing * 0.7);
+        girar(huesos.rArm, null, swing * 0.7);
+        huesos.tail.forEach((b, i) => {
+          girar(b, null, 0, Math.sin(time * 2.6 + i * 0.55) * (0.1 + walk * 0.08), 0);
+        });
+        pivot.position.y = Math.abs(Math.sin(t)) * 0.04 * walk;
+      }
     } else {
-      // Sin animaciones en el archivo: trote y balanceo por código
-      pivot.position.y = Math.abs(Math.sin(time * 9)) * 0.05 * walk;
-      pivot.rotation.z = Math.sin(time * 9) * 0.06 * walk;
       pivot.rotation.y = Math.PI + Math.sin(time * 2.2) * 0.02;
     }
+
+    // Animación procedural sobre huesos: andar y gesto de ataque cuando el
+    // archivo no trae esos clips (base fija) o para enriquecer la pose (cola)
+    if (baseQ) {
+      const t = time * 9;
+      const swing = Math.sin(t) * 0.55 * walk;
+      girar(huesos.lThigh, baseQ, swing);
+      girar(huesos.rThigh, baseQ, -swing);
+      girar(huesos.lArm, baseQ, -swing * 0.7);
+      girar(huesos.rArm, baseQ, swing * 0.7);
+      // Ataque: mordida/cabeceo; habilidad: cabeza atrás
+      const ataque = pose.firing ? 1 : 0;
+      girar(huesos.jaw, baseQ, 0.35 * ataque);
+      girar(huesos.head, baseQ, -0.18 * ataque + (pose.throwing ? -0.35 : 0) + Math.sin(time * 2.2) * 0.03);
+      girar(huesos.spine, baseQ, 0.08 * ataque);
+      // Cola: vaivén continuo, más vivo al correr
+      huesos.tail.forEach((b, i) => {
+        girar(b, baseQ, 0, Math.sin(time * 2.6 + i * 0.55) * (0.1 + walk * 0.08), 0);
+      });
+      // Trote vertical ligero
+      pivot.position.y = Math.abs(Math.sin(t)) * 0.04 * walk;
+    }
+
     // Agacharse: compresión vertical (igual que los procedurales)
     const targetS = pose.crouch ? 0.72 : 1;
     root.scale.y += (targetS - root.scale.y) * 0.25;
     // Ataque: pequeño retroceso del cuerpo
     pivot.position.z = pose.firing ? 0.05 : pivot.position.z * 0.8;
-    // Habilidad/interacción: cabeceo de todo el cuerpo (sin acceso a huesos)
+    // Habilidad/interacción: cabeceo de todo el cuerpo
     const targetPitch = pose.throwing ? -0.3 : pose.interacting ? 0.25 : 0;
     pivot.rotation.x += (targetPitch - pivot.rotation.x) * 0.25;
     updateAttackIndicator(indicator, pose.weapon, time, pose.firing, pose.reloading);
