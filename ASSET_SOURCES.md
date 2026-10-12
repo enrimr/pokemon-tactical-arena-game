@@ -38,7 +38,8 @@ Fecha de acceso: 2026-10-08. Búsqueda real realizada contra la API pública de 
 | Interfaz (HTML/CSS) | `apps/client/src/styles.css` | Propia | — |
 
 No se descargó, extrajo ni incluyó ningún archivo de audio, modelo, textura o interfaz de
-terceros ni de juegos comerciales. No hay dependencias de CDN en tiempo de ejecución.
+terceros ni de juegos comerciales. No hay dependencias de CDN en tiempo de ejecución
+(única excepción, opcional y desactivada por defecto: ver «Modelos oficiales opcionales»).
 
 ## Modelos oficiales opcionales (no incluidos ni distribuidos)
 
@@ -53,12 +54,20 @@ usuario los ha descargado en su copia con `npm run modelos:oficiales`
   inc.»; son con casi total certeza extracciones de los juegos oficiales optimizadas
   (Draco + WebP). Su licencia MIT cubre solo el código del pipeline, no los modelos.
 - Por ese motivo los `.glb` **no están en este repositorio** (están en `.gitignore`), no se
-  incluyen en el zip ni deben subirse a despliegues públicos (Railway). La decisión de
-  descargarlos y usarlos en local es del usuario; véase el aviso de propiedad intelectual.
-- El descodificador Draco necesario se copia en local desde el paquete npm de `three`
-  (`examples/jsm/libs/draco/gltf/`): se mantiene la regla de no depender de CDN.
-- Sin los archivos descargados, el ajuste no tiene efecto y se usan los modelos
-  procedurales propios (`apps/client/src/models.ts`), que siguen siendo los predeterminados.
+  incluyen en el zip **ni se alojan en el despliegue** (Railway). Se pidió subirlos al
+  despliegue con un aviso de propiedad; se descartó: un aviso no otorga licencia y alojarlos
+  sería redistribución directa de archivos con copyright de Nintendo.
+- Con el ajuste activado y sin descarga local, el cliente los carga **en tiempo de ejecución
+  directamente del repositorio de origen** (`raw.githubusercontent.com/pokemon-party/3d-pokemon`,
+  que sirve con `Access-Control-Allow-Origin: *`): este proyecto no almacena ni sirve esos
+  archivos; la fuente es el repositorio de terceros. Es la única carga remota del juego y
+  solo ocurre si el usuario activa el ajuste (desactivado por defecto).
+- El descodificador Draco necesario se copia desde el paquete npm de `three`
+  (`examples/jsm/libs/draco/gltf/`, redistribuible) a `apps/client/public/draco/` en
+  `predev`/`prebuild` (`tools/copiar-draco.mjs`), así que sí está en el despliegue.
+- Sin descarga local y sin conexión a la fuente, el ajuste no tiene efecto y se usan los
+  modelos procedurales propios (`apps/client/src/models.ts`), que siguen siendo los
+  predeterminados.
 
 ## Aviso de propiedad intelectual
 

@@ -40,12 +40,14 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 
 - Modelos procedurales rehechos con más detalle (sonrisas, garras, colas orgánicas con
   `blobChain`, llama de tres capas, patrón del caparazón, bulbo con hojas en capas).
-- Ajuste opcional «Modelos oficiales» (desactivado por defecto): carga `.glb` descargados
-  por el usuario con `npm run modelos:oficiales` desde `pokemon-party/3d-pokemon`
-  (Draco + WebP + esqueleto; ver `apps/client/src/officialModels.ts`). Los archivos quedan
-  en `apps/client/public/modelos-oficiales/` (en `.gitignore`): son propiedad de
-  Nintendo/Creatures/GAME FREAK y **no deben redistribuirse ni desplegarse** (ASSET_SOURCES.md).
-- Sin archivos descargados el ajuste no hace nada y se usan los modelos propios.
+- Ajuste opcional «Modelos oficiales» (desactivado por defecto): carga `.glb` de
+  `pokemon-party/3d-pokemon` (Draco + WebP + esqueleto; `apps/client/src/officialModels.ts`).
+  Prioridad: descarga local (`npm run modelos:oficiales`, queda en `.gitignore`) y, si falta,
+  carga remota en el navegador directamente desde el repositorio de origen (funciona también
+  en el despliegue). Este proyecto **no aloja ni redistribuye** esos archivos: son propiedad
+  de Nintendo/Creatures/GAME FREAK (ASSET_SOURCES.md). Descodificador Draco copiado de
+  `three` (npm) en `predev`/`prebuild` (`tools/copiar-draco.mjs`).
+- Sin descarga local ni conexión, el ajuste no hace nada y se usan los modelos propios.
 
 ## Soporte móvil/táctil (2026-10-12)
 

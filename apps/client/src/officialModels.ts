@@ -21,6 +21,15 @@ import {
 
 const BASE = '/modelos-oficiales';
 
+/**
+ * Fuente remota (el repositorio público del que procede la descarga local).
+ * Este proyecto NO aloja ni redistribuye los .glb: si no están descargados en
+ * la copia local, el navegador los obtiene directamente de esa fuente
+ * (sirve con `Access-Control-Allow-Origin: *`). Son propiedad de
+ * Nintendo/Creatures Inc./GAME FREAK; ver ASSET_SOURCES.md.
+ */
+const REMOTO = 'https://raw.githubusercontent.com/pokemon-party/3d-pokemon/main/models/opt/regular';
+
 /** Nº de Pokédex nacional: nombre de archivo en la descarga local. */
 const DEX: Record<CharacterId, number> = { pikachu: 25, charmander: 4, squirtle: 7, bulbasaur: 1 };
 
@@ -44,7 +53,7 @@ let loadPromise: Promise<boolean> | null = null;
 function getLoader(): GLTFLoader {
   if (!loader) {
     const draco = new DRACOLoader();
-    draco.setDecoderPath(`${BASE}/draco/`);
+    draco.setDecoderPath('/draco/'); // copiado de three (npm) en predev/prebuild
     loader = new GLTFLoader();
     loader.setDRACOLoader(draco);
   }
@@ -59,11 +68,12 @@ export function preloadOfficialModels(): Promise<boolean> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     const jobs = (Object.keys(DEX) as CharacterId[]).map(async (id) => {
-      const url = `${BASE}/${DEX[id]}.glb`;
+      // Preferir la descarga local; si no existe, cargar de la fuente remota
+      let url = `${BASE}/${DEX[id]}.glb`;
       // HEAD previo: distingue un 404 real de un index.html de respaldo
-      const head = await fetch(url, { method: 'HEAD' });
-      if (!head.ok || (head.headers.get('content-type') ?? '').includes('text/html')) {
-        throw new Error(`no encontrado: ${url}`);
+      const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
+      if (!head?.ok || (head.headers.get('content-type') ?? '').includes('text/html')) {
+        url = `${REMOTO}/${DEX[id]}.glb`;
       }
       const gltf = await getLoader().loadAsync(url);
       gltf.scene.traverse((o) => {
@@ -78,8 +88,8 @@ export function preloadOfficialModels(): Promise<boolean> {
     const fallos = results.filter((r) => r.status === 'rejected');
     if (fallos.length) {
       console.info(
-        `[modelos oficiales] ${fallos.length} de 4 no disponibles; se usan los modelos propios. ` +
-        'Para descargarlos: npm run modelos:oficiales',
+        `[modelos oficiales] ${fallos.length} de 4 no disponibles (ni descarga local ni fuente remota); ` +
+        'se usan los modelos propios.',
       );
     }
     return cache.size === 4;

@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../../tools/copiar-draco.mjs",
     "dev": "vite",
+    "prebuild": "node ../../tools/copiar-draco.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b"

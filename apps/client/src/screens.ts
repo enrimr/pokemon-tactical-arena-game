@@ -475,9 +475,10 @@ export class App {
         respectivos titulares.</p>
         <p>Todo el código, los modelos 3D procedurales, el mapa «Estación Aurora» y los sonidos sintetizados
         se crearon específicamente para este proyecto (ver ASSET_SOURCES.md).</p>
-        <p>El ajuste opcional «Modelos oficiales» carga archivos que el usuario haya descargado en su propia
-        copia; esos modelos son propiedad de Nintendo/Creatures Inc./GAME FREAK, no se distribuyen con el
-        juego y no deben incluirse en despliegues públicos.</p>
+        <p>El ajuste opcional «Modelos oficiales» (desactivado por defecto) muestra modelos que son
+        <b>propiedad de Nintendo/Creatures Inc./GAME FREAK</b>. Este juego no los aloja ni los
+        redistribuye: se cargan desde la copia local del usuario o directamente desde el repositorio
+        público pokemon-party/3d-pokemon.</p>
         <p>Tecnología: TypeScript, Three.js, Vite, Node.js y WebSocket (ws), Vitest.</p>
         <button class="menu-btn primary" id="cr-back">${STR.volver}</button>
       </div>`;

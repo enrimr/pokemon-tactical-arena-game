@@ -7,3 +7,5 @@ pokemon-tactical-arena.zip
 tools/_*.mjs
 # Modelos oficiales descargados en local: nunca se redistribuyen (ver ASSET_SOURCES.md)
 apps/client/public/modelos-oficiales/
+# Descodificador Draco: se copia de node_modules/three en predev/prebuild
+apps/client/public/draco/

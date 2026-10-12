@@ -8,10 +8,10 @@
 // Deja los archivos en apps/client/public/modelos-oficiales/ (ignorado por git)
 // junto con el descodificador Draco que three.js distribuye en npm.
 
-import { mkdir, copyFile, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { copiarDraco } from './copiar-draco.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEST = path.join(ROOT, 'apps/client/public/modelos-oficiales');
@@ -25,7 +25,7 @@ const MODELOS = [
   { dex: 1, nombre: 'Bulbasaur' },
 ];
 
-await mkdir(path.join(DEST, 'draco'), { recursive: true });
+await mkdir(DEST, { recursive: true });
 
 for (const { dex, nombre } of MODELOS) {
   const url = `${BASE_URL}/${dex}.glb`;
@@ -49,13 +49,7 @@ for (const { dex, nombre } of MODELOS) {
 
 // Descodificador Draco (los .glb usan KHR_draco_mesh_compression). three.js lo
 // distribuye en su paquete npm, así que se copia en local: sin CDN en ejecución.
-const require = createRequire(path.join(ROOT, 'apps/client/package.json'));
-// three no exporta ./package.json: se resuelve el módulo principal (build/) y se sube
-const threeDir = path.dirname(path.dirname(require.resolve('three')));
-const dracoDir = path.join(threeDir, 'examples/jsm/libs/draco/gltf');
-for (const f of ['draco_decoder.js', 'draco_decoder.wasm', 'draco_wasm_wrapper.js']) {
-  await copyFile(path.join(dracoDir, f), path.join(DEST, 'draco', f));
-}
+await copiarDraco();
 console.log('Descodificador Draco copiado desde node_modules/three ✓');
 console.log(`\nListo. Activa «Modelos oficiales» en Ajustes dentro del juego.`);
 console.log('Aviso: estos modelos son propiedad de Nintendo/Creatures Inc./GAME FREAK;');

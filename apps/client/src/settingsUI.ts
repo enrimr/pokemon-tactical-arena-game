@@ -108,8 +108,10 @@ export function buildSettingsPanel(parent: HTMLElement, onClose: () => void): vo
   const notaModelos = document.createElement('p');
   notaModelos.className = 'hint';
   notaModelos.textContent =
-    'Carga los .glb descargados en tu copia con «npm run modelos:oficiales» (no se distribuyen '
-    + 'con el juego; ver ASSET_SOURCES.md). Si faltan, se usan los modelos propios.';
+    'Los modelos oficiales son propiedad de Nintendo/Creatures Inc./GAME FREAK y no se '
+    + 'distribuyen con este juego: se usan los descargados en tu copia («npm run '
+    + 'modelos:oficiales») o, si faltan, tu navegador los obtiene del repositorio público '
+    + 'pokemon-party/3d-pokemon (requiere conexión). Si no hay ninguno, se usan los modelos propios.';
   wrap.appendChild(notaModelos);
 
   // Controles reasignables
