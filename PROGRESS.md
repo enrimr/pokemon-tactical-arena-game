@@ -47,6 +47,20 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   Nintendo/Creatures/GAME FREAK y **no deben redistribuirse ni desplegarse** (ASSET_SOURCES.md).
 - Sin archivos descargados el ajuste no hace nada y se usan los modelos propios.
 
+## Soporte móvil/táctil (2026-10-12)
+
+- Controles táctiles (`apps/client/src/touch.ts`): joystick virtual bajo el pulgar izquierdo
+  (medio recorrido = caminar), arrastre para mirar con la sensibilidad de Ajustes, botones de
+  acción (disparo, salto, agacharse-conmutador, recarga, habilidad, granada, usar, soltar
+  núcleo contextual) y píldoras de Pausa/Compra/Marcador. Alimentan el mismo InputManager
+  (bitmask BTN + movimiento analógico), sin cambios en red ni simulación.
+- Detección por `pointer: coarse`; `?tactil` / `?no-tactil` para forzar en pruebas. Sin
+  pointer lock en táctil: la entrada se congela mientras pausa o compra están abiertas.
+- HUD reubicado en táctil y hoja de estilos adaptada a pantallas pequeñas (menús, selección
+  de personaje, marcador y compra con scroll); aviso de girar el dispositivo en vertical.
+- Verificado con emulación táctil de Playwright (joystick mueve, arrastre gira, compra y
+  pausa abren) y re-ejecutada la comprobación de escritorio sin regresiones.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

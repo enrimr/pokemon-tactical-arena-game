@@ -7,6 +7,7 @@ import {
 import { GameRenderer, PlayerView } from './renderer.js';
 import { Hud } from './hud.js';
 import { InputManager } from './input.js';
+import { TouchControls, esDispositivoTactil } from './touch.js';
 import { audio } from './audio.js';
 import { settings, persist } from './settings.js';
 import type { Transport } from './net.js';
@@ -36,6 +37,7 @@ export class GameClient {
   private renderer: GameRenderer;
   private hud: Hud;
   private input: InputManager;
+  private touch: TouchControls | null = null;
   private transport: Transport;
   private myId: number;
 
@@ -89,6 +91,12 @@ export class GameClient {
     });
     this.input = new InputManager(this.renderer.renderer.domElement);
     this.input.attach();
+    if (esDispositivoTactil()) {
+      this.touch = new TouchControls(opts.container, this.input, {
+        onPausa: () => this.showPause(!this.pauseVisible),
+        onComprar: () => this.onKey(settings.binds.comprar),
+      });
+    }
     this.input.onLockChange = (locked) => {
       if (!locked && !this.hud.buyVisible && !this.ended && !this.disposed) this.showPause(true);
       if (locked) this.showPause(false);
@@ -113,7 +121,7 @@ export class GameClient {
 
     audio.stopMusic();
     if (opts.modo === 'entrenamiento') this.hud.showTrainingHelp();
-    this.input.requestLock();
+    if (!this.touch) this.input.requestLock();
     (window as unknown as { __pta?: GameClient }).__pta = this; // gancho de depuración/pruebas
     this.loop(performance.now());
   }
@@ -437,6 +445,8 @@ export class GameClient {
   private loop = (now: number): void => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
+    // En táctil no hay pointer lock: congelar la entrada con menús abiertos
+    this.input.touchSuspended = this.pauseVisible || this.hud.buyVisible;
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.frameMs = this.frameMs * 0.95 + (now - this.last) * 0.05;
     this.fps = this.fps * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05;
@@ -663,6 +673,7 @@ export class GameClient {
 
     // HUD
     this.hud.update(snap, selfSnap, this.myId);
+    this.touch?.setCore(selfSnap?.hasCore === true && alive);
     const corePos = snap.core.planted || snap.core.carrier === null
       ? (snap.core.pos.y > -50 ? { x: snap.core.pos.x, z: snap.core.pos.z } : null)
       : carrierPos ? { x: carrierPos.x, z: carrierPos.z } : null;
@@ -729,6 +740,7 @@ export class GameClient {
     cancelAnimationFrame(this.raf);
     clearInterval(this.pingTimer);
     window.removeEventListener('resize', this.onResize);
+    this.touch?.dispose();
     this.input.detach();
     this.hud.dispose();
     this.renderer.dispose();

@@ -25,6 +25,25 @@ Los ajustes y las teclas persisten en el navegador (localStorage).
 | Overlay de desarrollo (FPS, ping, tick, draw calls) | F3 |
 | Overlay de hitbox de cabeza (depuración) | F4 |
 
+## Táctil (móvil/tableta)
+
+En dispositivos con puntero grueso (`pointer: coarse`) aparecen controles táctiles
+automáticamente (forzables con `?tactil` y desactivables con `?no-tactil`, útil en pruebas).
+El juego está pensado para jugar en horizontal; en vertical se muestra un aviso.
+
+| Acción | Control |
+| --- | --- |
+| Mover | Joystick virtual (mitad izquierda; aparece bajo el pulgar) |
+| Caminar silencioso | Joystick a medio recorrido |
+| Mirar | Arrastrar en el resto de la pantalla |
+| Atacar | Botón grande ◉ |
+| Saltar / Agacharse (conmutador) | ⤒ / ⤓ |
+| Recargar / Habilidad / Granada / Interactuar | R / ✦ / ◌ / E |
+| Soltar núcleo | ⬡ (solo visible llevándolo) |
+| Compra, Marcador (conmutador) y Pausa | Píldoras de la esquina superior derecha |
+
+La sensibilidad e inversión de Y de Ajustes también se aplican al arrastre táctil.
+
 Notas:
 - La pérdida de foco de la ventana limpia todas las entradas (no quedan disparos ni movimiento
   atascados).

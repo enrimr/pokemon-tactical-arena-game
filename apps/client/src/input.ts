@@ -21,6 +21,35 @@ export class InputManager {
   onKeyPress: ((code: string) => void) | null = null;
   enabled = true;
 
+  /** Modo táctil (TouchControls): sin pointer lock, movimiento analógico. */
+  touch = false;
+  /** En táctil, congela la entrada mientras hay un menú abierto (pausa/compra). */
+  touchSuspended = false;
+  touchMove = { x: 0, z: 0 };
+  touchButtons = 0;
+
+  /** La entrada de juego está activa (ratón capturado, o táctil sin menús). */
+  private get active(): boolean {
+    return this.locked || (this.touch && !this.touchSuspended);
+  }
+
+  /** Giro de cámara en píxeles de arrastre (táctil); respeta sensibilidad e inversión. */
+  applyLook(dx: number, dy: number): void {
+    if (!this.enabled || !this.active) return;
+    const k = 0.0022 * settings.sensibilidad;
+    this.yaw -= dx * k;
+    const inv = settings.invertirY ? -1 : 1;
+    this.pitch -= dy * k * inv;
+    const lim = Math.PI / 2 - 0.02;
+    this.pitch = Math.max(-lim, Math.min(lim, this.pitch));
+  }
+
+  /** Mantiene o suelta una tecla de forma programática (botones táctiles). */
+  setHeld(code: string, held: boolean): void {
+    if (held) this.keys.add(code);
+    else this.keys.delete(code);
+  }
+
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.locked || !this.enabled) return;
     const k = 0.0022 * settings.sensibilidad;
@@ -119,7 +148,7 @@ export class InputManager {
     let buttons = 0;
     let moveX = 0;
     let moveZ = 0;
-    if (this.enabled && this.locked) {
+    if (this.enabled && this.active) {
       // Giro con flechas (apoyo de accesibilidad y pruebas)
       const turn = 0.045;
       if (this.keys.has('ArrowLeft')) this.yaw += turn;
@@ -140,6 +169,12 @@ export class InputManager {
       if (this.keys.has(b.granada)) buttons |= BTN.GRENADE;
       if (this.keys.has(b.interactuar)) buttons |= BTN.USE;
       if (this.keys.has(b.soltar)) buttons |= BTN.DROP;
+      // Controles táctiles: joystick analógico + botones en pantalla
+      if (this.touch) {
+        moveX = Math.max(-1, Math.min(1, moveX + this.touchMove.x));
+        moveZ = Math.max(-1, Math.min(1, moveZ + this.touchMove.z));
+        buttons |= this.touchButtons;
+      }
     }
     return { moveX, moveZ, yaw: this.yaw, pitch: this.pitch, buttons };
   }
