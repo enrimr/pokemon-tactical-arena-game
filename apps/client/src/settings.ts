@@ -29,6 +29,8 @@ export interface Settings {
   movimientoReducido: boolean;
   destelloAccesible: boolean;
   resolucionInterna: 1 | 0.75;
+  /** Usar los modelos oficiales descargados en local, si existen (ver ASSET_SOURCES.md). */
+  modelosOficiales: boolean;
   binds: KeyBinds;
   alias: string;
 }
@@ -62,6 +64,7 @@ const DEFAULTS: Settings = {
   movimientoReducido: false,
   destelloAccesible: false,
   resolucionInterna: 1,
+  modelosOficiales: false,
   binds: { ...DEFAULT_BINDS },
   alias: '',
 };

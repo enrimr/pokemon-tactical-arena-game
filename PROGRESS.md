@@ -36,6 +36,17 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   salida inmediata si no hay ninguna). Limitación: si un jugador pierde la conexión durante
   el drenado, su reconexión llega a la instancia nueva y no recupera la sala antigua.
 
+## Modelos de personaje (2026-10-12)
+
+- Modelos procedurales rehechos con más detalle (sonrisas, garras, colas orgánicas con
+  `blobChain`, llama de tres capas, patrón del caparazón, bulbo con hojas en capas).
+- Ajuste opcional «Modelos oficiales» (desactivado por defecto): carga `.glb` descargados
+  por el usuario con `npm run modelos:oficiales` desde `pokemon-party/3d-pokemon`
+  (Draco + WebP + esqueleto; ver `apps/client/src/officialModels.ts`). Los archivos quedan
+  en `apps/client/public/modelos-oficiales/` (en `.gitignore`): son propiedad de
+  Nintendo/Creatures/GAME FREAK y **no deben redistribuirse ni desplegarse** (ASSET_SOURCES.md).
+- Sin archivos descargados el ajuste no hace nada y se usan los modelos propios.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

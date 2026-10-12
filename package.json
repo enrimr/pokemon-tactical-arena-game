@@ -17,6 +17,7 @@
     "start": "npm run start --workspace apps/server",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p apps/server && tsc --noEmit -p apps/client",
+    "modelos:oficiales": "node tools/descargar-modelos-oficiales.mjs",
     "lint": "eslint packages apps --ext .ts"
   },
   "devDependencies": {

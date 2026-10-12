@@ -15,8 +15,14 @@ class ModelViewer {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private model: CharacterModel | null = null;
+  private current: CharacterId | null = null;
   private raf = 0;
   private t = 0;
+
+  // Reconstruir el modelo si cambia el ajuste de modelos oficiales/propios
+  private onModelsChanged = (): void => {
+    if (this.current) this.setCharacter(this.current);
+  };
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -35,6 +41,7 @@ class ModelViewer {
     );
     floor.rotation.x = -Math.PI / 2;
     this.scene.add(floor);
+    window.addEventListener('pta-modelos', this.onModelsChanged);
     this.loop();
   }
 
@@ -43,6 +50,7 @@ class ModelViewer {
       this.scene.remove(this.model.root);
       this.model.dispose();
     }
+    this.current = id;
     this.model = createCharacterModel(id);
     this.scene.add(this.model.root);
   }
@@ -61,6 +69,7 @@ class ModelViewer {
   };
 
   dispose(): void {
+    window.removeEventListener('pta-modelos', this.onModelsChanged);
     cancelAnimationFrame(this.raf);
     this.model?.dispose();
     this.renderer.dispose();
@@ -466,6 +475,9 @@ export class App {
         respectivos titulares.</p>
         <p>Todo el código, los modelos 3D procedurales, el mapa «Estación Aurora» y los sonidos sintetizados
         se crearon específicamente para este proyecto (ver ASSET_SOURCES.md).</p>
+        <p>El ajuste opcional «Modelos oficiales» carga archivos que el usuario haya descargado en su propia
+        copia; esos modelos son propiedad de Nintendo/Creatures Inc./GAME FREAK, no se distribuyen con el
+        juego y no deben incluirse en despliegues públicos.</p>
         <p>Tecnología: TypeScript, Three.js, Vite, Node.js y WebSocket (ws), Vitest.</p>
         <button class="menu-btn primary" id="cr-back">${STR.volver}</button>
       </div>`;

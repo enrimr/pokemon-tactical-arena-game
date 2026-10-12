@@ -90,7 +90,13 @@ export class GameRenderer {
     this.scene.add(this.coreMesh);
     this.applyQuality();
     this.resize();
+    // Al cambiar el ajuste de modelos (oficiales/propios), reconstruirlos
+    window.addEventListener('pta-modelos', this.onModelsChanged);
   }
+
+  private onModelsChanged = (): void => {
+    this.removeAllPlayers(); // se recrean en el siguiente updatePlayers
+  };
 
   private buildLights(): void {
     const hemi = new THREE.HemisphereLight(0xcfe4ff, 0x8e8574, 0.85);
@@ -622,6 +628,7 @@ export class GameRenderer {
   }
 
   dispose(): void {
+    window.removeEventListener('pta-modelos', this.onModelsChanged);
     this.removeAllPlayers();
     for (const t of this.tracers) {
       t.mesh.geometry.dispose();

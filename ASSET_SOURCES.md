@@ -40,6 +40,26 @@ Fecha de acceso: 2026-10-08. Búsqueda real realizada contra la API pública de 
 No se descargó, extrajo ni incluyó ningún archivo de audio, modelo, textura o interfaz de
 terceros ni de juegos comerciales. No hay dependencias de CDN en tiempo de ejecución.
 
+## Modelos oficiales opcionales (no incluidos ni distribuidos)
+
+Añadido el 2026-10-12. El juego tiene un ajuste «Modelos oficiales», **desactivado por
+defecto**, que carga modelos `.glb` desde `apps/client/public/modelos-oficiales/` si el
+usuario los ha descargado en su copia con `npm run modelos:oficiales`
+(`tools/descargar-modelos-oficiales.mjs`).
+
+- Origen de la descarga: repositorio público `pokemon-party/3d-pokemon` (GitHub), archivos
+  `models/opt/regular/{1,4,7,25}.glb` (Bulbasaur, Charmander, Squirtle, Pikachu). Ese
+  repositorio declara: «All 3D assets are property of Nintendo/Creatures Inc./GAME FREAK
+  inc.»; son con casi total certeza extracciones de los juegos oficiales optimizadas
+  (Draco + WebP). Su licencia MIT cubre solo el código del pipeline, no los modelos.
+- Por ese motivo los `.glb` **no están en este repositorio** (están en `.gitignore`), no se
+  incluyen en el zip ni deben subirse a despliegues públicos (Railway). La decisión de
+  descargarlos y usarlos en local es del usuario; véase el aviso de propiedad intelectual.
+- El descodificador Draco necesario se copia en local desde el paquete npm de `three`
+  (`examples/jsm/libs/draco/gltf/`): se mantiene la regla de no depender de CDN.
+- Sin los archivos descargados, el ajuste no tiene efecto y se usan los modelos
+  procedurales propios (`apps/client/src/models.ts`), que siguen siendo los predeterminados.
+
 ## Aviso de propiedad intelectual
 
 Este es un fan game no oficial, sin ánimo de lucro y sin monetización. Los nombres y diseños

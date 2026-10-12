@@ -5,3 +5,5 @@ coverage/
 .DS_Store
 pokemon-tactical-arena.zip
 tools/_*.mjs
+# Modelos oficiales descargados en local: nunca se redistribuyen (ver ASSET_SOURCES.md)
+apps/client/public/modelos-oficiales/

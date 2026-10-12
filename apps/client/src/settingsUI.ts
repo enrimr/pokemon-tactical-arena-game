@@ -1,5 +1,9 @@
 import { STR } from '@pta/shared';
 import { DEFAULT_BINDS, KeyBinds, persist, settings } from './settings.js';
+import { preloadOfficialModels } from './officialModels.js';
+
+/** Avisa a renderer/visores de que deben reconstruir los modelos de personaje. */
+export const EVENTO_MODELOS = 'pta-modelos';
 
 const BIND_LABELS: Record<keyof KeyBinds, string> = {
   adelante: 'Avanzar',
@@ -94,6 +98,19 @@ export function buildSettingsPanel(parent: HTMLElement, onClose: () => void): vo
 
   toggle(STR.movimientoReducido, settings.movimientoReducido, (v) => { settings.movimientoReducido = v; });
   toggle(STR.destelloAccesible, settings.destelloAccesible, (v) => { settings.destelloAccesible = v; });
+
+  toggle('Modelos oficiales (si están descargados)', settings.modelosOficiales, (v) => {
+    settings.modelosOficiales = v;
+    const aplicar = (): void => { window.dispatchEvent(new Event(EVENTO_MODELOS)); };
+    if (v) void preloadOfficialModels().then(aplicar);
+    else aplicar();
+  });
+  const notaModelos = document.createElement('p');
+  notaModelos.className = 'hint';
+  notaModelos.textContent =
+    'Carga los .glb descargados en tu copia con «npm run modelos:oficiales» (no se distribuyen '
+    + 'con el juego; ver ASSET_SOURCES.md). Si faltan, se usan los modelos propios.';
+  wrap.appendChild(notaModelos);
 
   // Controles reasignables
   const h = document.createElement('h3');
