@@ -30,6 +30,7 @@ export interface PlayerView {
   pos: Vec3;
   yaw: number;
   speed: number;
+  evoStage: number;
   crouching: boolean;
   alive: boolean;
   hasCore: boolean;
@@ -52,7 +53,7 @@ export class GameRenderer {
   private container: HTMLElement;
   private map: MapDef;
   private doors: THREE.Object3D[] = [];
-  private models = new Map<number, { model: CharacterModel; marker: THREE.Sprite }>();
+  private models = new Map<number, { model: CharacterModel; marker: THREE.Sprite; character: CharacterId; evoStage: number }>();
   private zoneFx = new Map<number, THREE.Group>();
   private projFx = new Map<number, THREE.Mesh>();
   private tracers: TracerFx[] = [];
@@ -313,7 +314,7 @@ export class GameRenderer {
   }
 
   setFirstPersonCharacter(char: CharacterId): void {
-    const color = { pikachu: 0xf7d02c, charmander: 0xee8130, squirtle: 0x6390f0, bulbasaur: 0x59b5a2 }[char];
+    const color = { pikachu: 0xf7d02c, charmander: 0xee8130, squirtle: 0x6390f0, bulbasaur: 0x59b5a2, mewtwo: 0xcbb3e3 }[char];
     (this.fpPawL.material as THREE.MeshStandardMaterial).color.set(color);
     for (const m of this.fpIndicator.mats) m.color.set(CHARACTER_COLORS[char]);
   }
@@ -346,14 +347,21 @@ export class GameRenderer {
     for (const v of views) {
       seen.add(v.id);
       let entry = this.models.get(v.id);
+      if (entry && (entry.character !== v.character || entry.evoStage !== v.evoStage)) {
+        // Evolución o cambio de personaje: reconstruir el modelo
+        this.scene.remove(entry.model.root);
+        entry.model.dispose();
+        this.models.delete(v.id);
+        entry = undefined;
+      }
       if (!entry) {
-        const model = createCharacterModel(v.character);
+        const model = createCharacterModel(v.character, v.evoStage);
         const marker = this.textSprite(v.nombre, v.team === 0 ? '#8fc1ff' : '#ffc078', 56);
         marker.scale.set(1.6, 1.6, 1);
         marker.position.y = 1.95;
         model.root.add(marker);
         this.scene.add(model.root);
-        entry = { model, marker };
+        entry = { model, marker, character: v.character, evoStage: v.evoStage };
         this.models.set(v.id, entry);
       }
       const { model, marker } = entry;

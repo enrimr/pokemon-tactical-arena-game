@@ -17,12 +17,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEST = path.join(ROOT, 'apps/client/public/modelos-oficiales');
 const BASE_URL = 'https://raw.githubusercontent.com/pokemon-party/3d-pokemon/main/models/opt/regular';
 
-// Nº de Pokédex nacional de los cuatro personajes del juego
+// Nº de Pokédex nacional de los personajes del juego y sus evoluciones
 const MODELOS = [
   { dex: 25, nombre: 'Pikachu' },
+  { dex: 26, nombre: 'Raichu' },
   { dex: 4, nombre: 'Charmander' },
+  { dex: 5, nombre: 'Charmeleon' },
+  { dex: 6, nombre: 'Charizard' },
   { dex: 7, nombre: 'Squirtle' },
+  { dex: 8, nombre: 'Wartortle' },
+  { dex: 9, nombre: 'Blastoise' },
   { dex: 1, nombre: 'Bulbasaur' },
+  { dex: 2, nombre: 'Ivysaur' },
+  { dex: 3, nombre: 'Venusaur' },
+  { dex: 150, nombre: 'Mewtwo' },
 ];
 
 await mkdir(DEST, { recursive: true });

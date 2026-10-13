@@ -62,6 +62,9 @@ export interface PlayerState {
   grenadeCharges: number;     // 0 ó 1
   defuseKit: boolean;
 
+  evoStage: number;           // etapa evolutiva (0 = base), persiste entre rondas
+  evoPoints: number;          // energía de evolución acumulada en la partida
+
   pos: Vec3;                  // pies
   vel: Vec3;
   yaw: number;
@@ -115,7 +118,7 @@ export interface ZoneState {
   owner: number;
 }
 
-export type ProjectileType = 'destello' | 'ascua' | 'cortina' | 'esporas' | 'niebla';
+export type ProjectileType = 'destello' | 'ascua' | 'cortina' | 'esporas' | 'niebla' | 'premonicion';
 
 export interface ProjectileState {
   id: number;
@@ -153,6 +156,7 @@ export type SimEvent =
   | { e: 'desactivado'; por: number }
   | { e: 'nucleoSuelto'; pos: Vec3 }
   | { e: 'nucleoRecogido'; por: number }
-  | { e: 'compra'; player: number; item: string };
+  | { e: 'compra'; player: number; item: string }
+  | { e: 'evolucion'; player: number; stage: number };
 
 export interface LastSeen { pos: Vec3; yaw: number; tick: number; }

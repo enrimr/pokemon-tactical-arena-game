@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  ATTACK_NAMES, CHARACTERS, CHARACTER_INFO, CharacterId, LobbyState, S2C, SnapPlayer, STR, Team, WEAPONS,
+  ATTACK_NAMES, CHARACTERS, CHARACTER_INFO, CharacterId, EVOLUTIONS, LobbyState, S2C, SnapPlayer, STR, Team, WEAPONS,
 } from '@pta/shared';
 import { createCharacterModel, CharacterModel } from './models.js';
 import { GameClient } from './game.js';
@@ -51,7 +51,9 @@ class ModelViewer {
       this.model.dispose();
     }
     this.current = id;
-    this.model = createCharacterModel(id);
+    // `?etapa=1|2`: previsualizar la etapa evolutiva (depuración/capturas)
+    const etapa = Number(new URLSearchParams(location.search).get('etapa') ?? '0') || 0;
+    this.model = createCharacterModel(id, etapa);
     this.scene.add(this.model.root);
   }
 
@@ -168,6 +170,7 @@ export class App {
           <h3 id="cs-name"></h3>
           <p id="cs-attacks" class="hint"></p>
           <p id="cs-ability"></p>
+          <p id="cs-evo" class="hint"></p>
           ${modo === 'solo' ? `<label class="set-row"><span>Dificultad de los bots</span>
             <select id="cs-dif">
               <option value="facil">Fácil</option>
@@ -184,7 +187,11 @@ export class App {
       const atk = ATTACK_NAMES[char];
       s.querySelector('#cs-attacks')!.textContent =
         `Ataques: ${atk.pulso} (${WEAPONS.pulso.nombre.toLowerCase()}) · ${atk.rafaga} (${WEAPONS.rafaga.precio} cr) · ${atk.preciso} (${WEAPONS.preciso.precio} cr)`;
+      const cadena = EVOLUTIONS[char];
       s.querySelector('#cs-ability')!.textContent = `${CHARACTER_INFO[char].habilidad}: ${CHARACTER_INFO[char].descripcionHabilidad}`;
+      s.querySelector('#cs-evo')!.textContent = cadena.length
+        ? `Evoluciona en partida (bajas y objetivos): ${[CHARACTER_INFO[char].nombre, ...cadena].join(' → ')}`
+        : 'No evoluciona.';
       this.viewer?.setCharacter(char);
       list.querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.dataset.c === char));
     };

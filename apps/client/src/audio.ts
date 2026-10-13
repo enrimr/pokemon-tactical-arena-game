@@ -114,12 +114,25 @@ class AudioEngine {
   disparo(weapon: WeaponId, char: CharacterId, pos?: [number, number, number]): void {
     if (!this.ready) return;
     const base = { pulso: [700, 180, 0.12, 0.35], rafaga: [900, 240, 0.09, 0.3], preciso: [1400, 90, 0.3, 0.5] }[weapon];
-    const flavor: Record<CharacterId, OscillatorType> = { pikachu: 'square', charmander: 'sawtooth', squirtle: 'sine', bulbasaur: 'triangle' };
+    const flavor: Record<CharacterId, OscillatorType> = { pikachu: 'square', charmander: 'sawtooth', squirtle: 'sine', bulbasaur: 'triangle', mewtwo: 'sine' };
     const dest = this.out(pos);
     const g = this.env(dest, base[2], base[3]);
     this.osc(flavor[char], base[0], base[1], base[2], g);
     if (char === 'pikachu') this.noise(0.05, this.env(dest, 0.05, 0.15), 8000);
     if (char === 'charmander') this.noise(0.1, this.env(dest, 0.1, 0.2), 1200);
+  }
+
+  /** Arpegio ascendente al evolucionar (solo el propio jugador). */
+  evolucion(): void {
+    if (!this.ready) return;
+    const notas = [440, 554, 659, 880, 1109];
+    notas.forEach((f, i) => {
+      setTimeout(() => {
+        if (!this.ready) return;
+        const g = this.env(this.out(), 0.12, 0.3);
+        this.osc('triangle', f, f * 1.01, 0.12, g);
+      }, i * 90);
+    });
   }
 
   pasos(pos?: [number, number, number]): void {

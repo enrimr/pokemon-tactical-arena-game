@@ -3,7 +3,8 @@
 Fan game táctico **5 contra 5 por rondas** en el navegador, inspirado en la estructura táctica
 de Counter-Strike: economía entre rondas, instalación/desactivación de un objetivo, información
 por sonido y bots competentes. Los jugadores controlan directamente a Pikachu, Charmander,
-Squirtle o Bulbasaur, que combaten con ataques de energía. **No oficial, sin ánimo de lucro**
+Squirtle, Bulbasaur o Mewtwo, que combaten con ataques de energía y pueden **evolucionar en
+mitad de la partida** acumulando bajas y objetivos. **No oficial, sin ánimo de lucro**
 (ver `ASSET_SOURCES.md` y Créditos en el juego).
 
 ![combate](docs/capturas/07-instalacion.png)
@@ -55,20 +56,27 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   Cabeza ×1,5. Sin fuego amigo, sin daño por caída, sin críticos aleatorios.
 - Economía: inicio de mitad 800 cr; baja +200, instalación +200, desactivación +300; victoria
   +2400; derrota 1900 (+400 por derrota consecutiva, máx. +1200). Tope 6000 cr.
-- Perfiles de ataque comunes a los cuatro personajes (mismo daño/cadencia/alcance; solo
+- Perfiles de ataque comunes a los cinco personajes (mismo daño/cadencia/alcance; solo
   cambia la identidad elemental), con nombre de movimiento Pokémon por personaje:
 
-  | Perfil | Pikachu | Charmander | Squirtle | Bulbasaur |
-  | --- | --- | --- | --- | --- |
-  | Pulso básico (gratis) | Impactrueno | Ascuas | Pistola Agua | Hoja Afilada |
-  | Ráfaga táctica (1800) | Chispa | Lanzallamas | Rayo Burbuja | Bala Semilla |
-  | Pulso preciso (2400) | Rayo | Llamarada | Hidrobomba | Rayo Solar |
+  | Perfil | Pikachu | Charmander | Squirtle | Bulbasaur | Mewtwo |
+  | --- | --- | --- | --- | --- | --- |
+  | Pulso básico (gratis) | Impactrueno | Ascuas | Pistola Agua | Hoja Afilada | Confusión |
+  | Ráfaga táctica (1800) | Chispa | Lanzallamas | Rayo Burbuja | Bala Semilla | Psicorrayo |
+  | Pulso preciso (2400) | Rayo | Llamarada | Hidrobomba | Rayo Solar | Psíquico |
 
   El orbe elemental ante la boca/manos indica el perfil equipado (visible también en los
   rivales): orbe sencillo = pulso, tres chispas orbitando = ráfaga, orbe con anillo = preciso.
   Habilidad Q (400), granada de niebla G (300), kit de desactivación (400, solo defensores).
 - Habilidades: Pikachu *Destello* (ciega), Charmander *Ascua* (zona de daño), Squirtle
-  *Cortina* (niebla), Bulbasaur *Esporas* (ralentiza).
+  *Cortina* (niebla), Bulbasaur *Esporas* (ralentiza), Mewtwo *Premonición* (revela enemigos
+  a través de paredes 3 s).
+- Evolución en partida: bajas (+40), asistencias (+20) e instalar/desactivar (+35) cargan la
+  energía; con 80 llega la 1.ª evolución y con 180 la 2.ª (Pikachu→Raichu;
+  Charmander→Charmeleon→Charizard; Squirtle→Wartortle→Blastoise; Bulbasaur→Ivysaur→Venusaur;
+  Mewtwo no evoluciona). Evolucionar cura y sube PS máx. (+15/etapa), acelera la recarga
+  (−12 %/etapa) y recarga la habilidad; el progreso persiste entre rondas y se pierde al
+  cambiar de personaje.
 
 ### Controles (reasignables en Ajustes)
 

@@ -234,7 +234,7 @@ describe('núcleo: instalar, desactivar y desempates', () => {
     let sim = scriptedSim();
     skipPrep(sim);
     for (const p of sim.players.values()) p.hp = 1;
-    for (const p of sim.players.values()) sim.applyDamage(p, 10, p.team === 0 ? 6 : 1, false);
+    for (const p of sim.players.values()) sim.applyDamage(p, 999, p.team === 0 ? 6 : 1, false);
     sim.step();
     expect(sim.match.roundWinner).toBe(1);
 
@@ -247,7 +247,7 @@ describe('núcleo: instalar, desactivar y desempates', () => {
     hold(sim, 1, { buttons: BTN.USE }, 3 * TICK_RATE + 2);
     expect(sim.core.planted).toBe(true);
     for (const p of sim.players.values()) p.hp = 1;
-    for (const p of sim.players.values()) sim.applyDamage(p, 10, p.team === 0 ? 6 : 1, false);
+    for (const p of sim.players.values()) sim.applyDamage(p, 999, p.team === 0 ? 6 : 1, false);
     sim.step();
     expect(sim.match.roundWinner).toBe(0);
   });

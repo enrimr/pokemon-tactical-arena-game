@@ -3,6 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { clone as cloneWithSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CharacterId } from '@pta/shared';
+import { EVO_SCALE } from '@pta/shared';
 import {
   buildAttackIndicator, updateAttackIndicator, CHARACTER_COLORS,
   type CharacterModel, type Pose,
@@ -36,8 +37,14 @@ const BASE = '/modelos-oficiales';
  */
 const REMOTO = 'https://raw.githubusercontent.com/pokemon-party/3d-pokemon/main/models/opt/regular';
 
-/** Nº de Pokédex nacional: nombre de archivo en la descarga local. */
-const DEX: Record<CharacterId, number> = { pikachu: 25, charmander: 4, squirtle: 7, bulbasaur: 1 };
+/** Nº de Pokédex nacional por etapa evolutiva: nombre de archivo .glb. */
+const DEX: Record<CharacterId, number[]> = {
+  pikachu: [25, 26],
+  charmander: [4, 5, 6],
+  squirtle: [7, 8, 9],
+  bulbasaur: [1, 2, 3],
+  mewtwo: [150],
+};
 
 /** Punto de origen de los ataques (boca), tras normalizar la altura. */
 const MUZZLE: Record<CharacterId, [number, number, number]> = {
@@ -45,11 +52,12 @@ const MUZZLE: Record<CharacterId, [number, number, number]> = {
   charmander: [0, 0.93, -0.6],
   squirtle: [0, 0.92, -0.58],
   bulbasaur: [0, 0.7, -0.78],
+  mewtwo: [0, 1.0, -0.52],
 };
 
 /** Altura visual objetivo (los procedurales miden ≈1,4 m). */
 const TARGET_HEIGHT: Record<CharacterId, number> = {
-  pikachu: 1.35, charmander: 1.35, squirtle: 1.3, bulbasaur: 1.1,
+  pikachu: 1.35, charmander: 1.35, squirtle: 1.3, bulbasaur: 1.1, mewtwo: 1.45,
 };
 
 /**
@@ -57,8 +65,8 @@ const TARGET_HEIGHT: Record<CharacterId, number> = {
  * hueso indicado). La pose de enlace de Charmander viene con los brazos en T
  * y una pierna levantada; sin clips que la tapen, se endereza aquí.
  */
-const POSE_FIX: Partial<Record<CharacterId, [string, number, number, number][]>> = {
-  charmander: [
+const POSE_FIX: Partial<Record<string, [string, number, number, number][]>> = {
+  'charmander:0': [
     ['larm', 0, 0, -0.9],
     ['rarm', 0, 0, 0.9],
     ['lthigh', -0.35, 0, 0],
@@ -69,7 +77,8 @@ const POSE_FIX: Partial<Record<CharacterId, [string, number, number, number][]>>
   ],
 };
 
-const cache = new Map<CharacterId, GLTF>();
+const cache = new Map<string, GLTF>(); // clave `${personaje}:${etapa}`
+const cargando = new Set<string>();
 let loader: GLTFLoader | null = null;
 let loadPromise: Promise<boolean> | null = null;
 
@@ -87,37 +96,55 @@ function getLoader(): GLTFLoader {
  * Intenta cargar los cuatro .glb (una sola vez; las llamadas posteriores
  * reutilizan el resultado). Devuelve true si están los cuatro.
  */
+async function loadStage(id: CharacterId, stage: number): Promise<void> {
+  const key = `${id}:${stage}`;
+  if (cache.has(key) || cargando.has(key)) return;
+  cargando.add(key);
+  try {
+    // Preferir la descarga local; si no existe, cargar de la fuente remota
+    let url = `${BASE}/${DEX[id][stage]}.glb`;
+    // HEAD previo: distingue un 404 real de un index.html de respaldo
+    const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
+    if (!head?.ok || (head.headers.get('content-type') ?? '').includes('text/html')) {
+      url = `${REMOTO}/${DEX[id][stage]}.glb`;
+    }
+    const gltf = await getLoader().loadAsync(url);
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) {
+        o.castShadow = true;
+        o.frustumCulled = false; // la malla con esqueleto se desplaza fuera de su AABB original
+      }
+    });
+    cache.set(key, gltf);
+  } finally {
+    cargando.delete(key);
+  }
+}
+
 export function preloadOfficialModels(): Promise<boolean> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
-    const jobs = (Object.keys(DEX) as CharacterId[]).map(async (id) => {
-      // Preferir la descarga local; si no existe, cargar de la fuente remota
-      let url = `${BASE}/${DEX[id]}.glb`;
-      // HEAD previo: distingue un 404 real de un index.html de respaldo
-      const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
-      if (!head?.ok || (head.headers.get('content-type') ?? '').includes('text/html')) {
-        url = `${REMOTO}/${DEX[id]}.glb`;
-      }
-      const gltf = await getLoader().loadAsync(url);
-      gltf.scene.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh) {
-          o.castShadow = true;
-          o.frustumCulled = false; // la malla con esqueleto se desplaza fuera de su AABB original
-        }
-      });
-      cache.set(id, gltf);
-    });
+    const jobs = (Object.keys(DEX) as CharacterId[]).map((id) => loadStage(id, 0));
     const results = await Promise.allSettled(jobs);
     const fallos = results.filter((r) => r.status === 'rejected');
     if (fallos.length) {
       console.info(
-        `[modelos oficiales] ${fallos.length} de 4 no disponibles (ni descarga local ni fuente remota); ` +
+        `[modelos oficiales] ${fallos.length} de ${jobs.length} no disponibles (ni descarga local ni fuente remota); ` +
         'se usan los modelos propios.',
       );
     }
-    return cache.size === 4;
+    return fallos.length === 0;
   })();
   return loadPromise;
+}
+
+/** Carga en segundo plano el .glb de una etapa evolutiva y reconstruye modelos al llegar. */
+function ensureStage(id: CharacterId, stage: number): void {
+  const key = `${id}:${stage}`;
+  if (cache.has(key) || cargando.has(key)) return;
+  void loadStage(id, stage)
+    .then(() => window.dispatchEvent(new Event('pta-modelos')))
+    .catch(() => { /* sin red: se mantiene el respaldo */ });
 }
 
 /** Huesos relevantes para la animación procedural, localizados por nombre. */
@@ -168,15 +195,24 @@ function girar(b: THREE.Bone | undefined, base: Map<THREE.Bone, THREE.Quaternion
  * Crea una instancia del modelo oficial ya cargado, o null si no está en
  * caché (sin descarga, o preload aún en curso): el llamante usará el procedural.
  */
-export function createOfficialModel(id: CharacterId): CharacterModel | null {
-  const gltf = cache.get(id);
+export function createOfficialModel(id: CharacterId, stage = 0): CharacterModel | null {
+  const maxStage = DEX[id].length - 1;
+  const wantStage = Math.min(stage, maxStage);
+  let useStage = wantStage;
+  if (!cache.has(`${id}:${useStage}`)) {
+    // Etapa aún no descargada: pedirla en segundo plano y usar la mejor inferior
+    ensureStage(id, wantStage);
+    while (useStage > 0 && !cache.has(`${id}:${useStage}`)) useStage--;
+  }
+  const gltf = cache.get(`${id}:${useStage}`);
   if (!gltf) return null;
+  const escala = EVO_SCALE[Math.min(wantStage, 2) as 0 | 1 | 2];
 
   const inner = cloneWithSkeleton(gltf.scene);
   const huesos = buscarHuesos(inner);
 
   // Correcciones de pose de reposo (antes de capturar la base y de medir)
-  for (const [nombre, x, y, z] of POSE_FIX[id] ?? []) {
+  for (const [nombre, x, y, z] of POSE_FIX[`${id}:${useStage}`] ?? []) {
     inner.traverse((o) => {
       if ((o as THREE.Bone).isBone && o.name.toLowerCase().startsWith(nombre)) {
         (o as THREE.Bone).rotation.x += x;
@@ -260,7 +296,7 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
     if (b) bbox.union(b.clone().applyMatrix4(mesh.matrixWorld));
   });
   const size = bbox.getSize(new THREE.Vector3());
-  const s = TARGET_HEIGHT[id] / Math.max(size.y, 0.001);
+  const s = TARGET_HEIGHT[id] * escala / Math.max(size.y, 0.001);
   inner.scale.setScalar(s);
   inner.position.set(
     -(bbox.min.x + bbox.max.x) / 2 * s,
@@ -274,7 +310,8 @@ export function createOfficialModel(id: CharacterId): CharacterModel | null {
   root.add(pivot);
 
   const muzzle = new THREE.Object3D();
-  muzzle.position.set(...MUZZLE[id]);
+  const [mx, my, mz] = MUZZLE[id];
+  muzzle.position.set(mx, my * escala, mz * escala);
   const indicator = buildAttackIndicator(CHARACTER_COLORS[id]);
   muzzle.add(indicator.group);
   root.add(muzzle);

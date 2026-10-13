@@ -138,8 +138,8 @@ export const BOT_TAKEOVER_S = 2;
 export const ENEMY_MARKER_S = 2;
 
 export type Team = 0 | 1; // 0 = azul, 1 = naranja
-export type CharacterId = 'pikachu' | 'charmander' | 'squirtle' | 'bulbasaur';
-export const CHARACTERS: CharacterId[] = ['pikachu', 'charmander', 'squirtle', 'bulbasaur'];
+export type CharacterId = 'pikachu' | 'charmander' | 'squirtle' | 'bulbasaur' | 'mewtwo';
+export const CHARACTERS: CharacterId[] = ['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'mewtwo'];
 
 /**
  * Nombre del ataque según el personaje y el perfil equipado. Los tres perfiles son
@@ -151,6 +151,7 @@ export const ATTACK_NAMES: Record<CharacterId, Record<WeaponId, string>> = {
   charmander: { pulso: 'Ascuas', rafaga: 'Lanzallamas', preciso: 'Llamarada' },
   squirtle: { pulso: 'Pistola Agua', rafaga: 'Rayo Burbuja', preciso: 'Hidrobomba' },
   bulbasaur: { pulso: 'Hoja Afilada', rafaga: 'Bala Semilla', preciso: 'Rayo Solar' },
+  mewtwo: { pulso: 'Confusión', rafaga: 'Psicorrayo', preciso: 'Psíquico' },
 };
 
 export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: string; descripcionHabilidad: string }> = {
@@ -158,4 +159,42 @@ export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: st
   charmander: { nombre: 'Charmander', habilidad: 'Ascua', descripcionHabilidad: 'Proyectil que crea una zona ígnea de 2,5 m de radio durante 5 s al tocar el suelo. Inflige 8 PV/s a los enemigos dentro. Las zonas superpuestas no acumulan daño.' },
   squirtle: { nombre: 'Squirtle', habilidad: 'Cortina', descripcionHabilidad: 'Proyectil que despliega una niebla de 3 m de radio durante 7 s. Bloquea la visión y la detección de los bots; no detiene ataques ni movimiento.' },
   bulbasaur: { nombre: 'Bulbasaur', habilidad: 'Esporas', descripcionHabilidad: 'Proyectil que crea una zona de esporas de 2,5 m de radio durante 5 s. Reduce la velocidad enemiga al 65 % mientras permanecen dentro. Sin daño.' },
+  mewtwo: { nombre: 'Mewtwo', habilidad: 'Premonición', descripcionHabilidad: 'Esfera psíquica que detona tras 0,8 s y revela durante 3 s a los enemigos en 10 m, incluso a través de paredes (aparecen en el minimapa y como marcadores). No inflige daño.' },
 };
+
+// ===== Evolución en mitad de la partida =====
+// Se gana energía con bajas, asistencias y acciones de objetivo. Al alcanzar
+// el umbral se evoluciona automáticamente: +PS máximos (con cura), recarga más
+// rápida y la habilidad se recarga. El progreso persiste entre rondas.
+export const EVO_KILL_POINTS = 40;
+export const EVO_ASSIST_POINTS = 20;
+export const EVO_OBJECTIVE_POINTS = 35; // instalar o desactivar el núcleo
+export const EVO_THRESHOLDS = [80, 180]; // puntos totales para la 1.ª y 2.ª evolución
+export const EVO_HP_BONUS = 15;          // PS máximos extra por etapa (y cura al evolucionar)
+export const EVO_RELOAD_MULT = 0.88;     // recarga por etapa (multiplicativo)
+export const EVO_SCALE: [number, number, number] = [1, 1.12, 1.24]; // escala visual por etapa
+
+/** Cadenas evolutivas (nombre mostrado por etapa > 0). Mewtwo no evoluciona. */
+export const EVOLUTIONS: Record<CharacterId, string[]> = {
+  pikachu: ['Raichu'],
+  charmander: ['Charmeleon', 'Charizard'],
+  squirtle: ['Wartortle', 'Blastoise'],
+  bulbasaur: ['Ivysaur', 'Venusaur'],
+  mewtwo: [],
+};
+
+export function maxEvoStage(id: CharacterId): number {
+  return EVOLUTIONS[id].length;
+}
+
+export function characterDisplayName(id: CharacterId, stage: number): string {
+  return stage > 0 ? EVOLUTIONS[id][stage - 1] ?? CHARACTER_INFO[id].nombre : CHARACTER_INFO[id].nombre;
+}
+
+export function maxHpFor(stage: number): number {
+  return MAX_HP + EVO_HP_BONUS * stage;
+}
+
+// Premonición (habilidad de Mewtwo)
+export const PREMONICION_RADIUS = 10;
+export const PREMONICION_DURATION_S = 3;

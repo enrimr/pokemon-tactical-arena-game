@@ -68,6 +68,23 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 - Verificado con emulación táctil de Playwright (joystick mueve, arrastre gira, compra y
   pausa abren) y re-ejecutada la comprobación de escritorio sin regresiones.
 
+## Mewtwo y evolución en partida (2026-10-13)
+
+- Quinto personaje jugable: Mewtwo (Confusión/Psicorrayo/Psíquico, habilidad *Premonición*:
+  revela enemigos en 10 m a través de paredes durante 3 s vía marcadores/minimapa). Sin
+  evolución. Modelo procedural propio y oficial (dex 150).
+- Sistema de evolución en la sim compartida (`EVO_*` en constants.ts): puntos por bajas,
+  asistencias y objetivo; umbrales 80/180; al evolucionar +15 PS máx. con cura, recarga un
+  12 % más rápida por etapa y habilidad recargada. Persiste entre rondas; cambiar de
+  personaje la reinicia. Snapshot: `evoStage` público, `evoPoints` propio/aliados.
+- Cliente: variantes procedurales por etapa (Raichu, Charmeleon/Charizard con alas,
+  Wartortle/Blastoise con cañones, Ivysaur/Venusaur con flor) y modelos oficiales por etapa
+  con carga perezosa (dex 2,3,5,6,8,9,26). HUD con progreso («Evolución 40/80»), aviso
+  central y sintonía al evolucionar; el modelo se reconstruye al cambiar de etapa.
+  `?etapa=1|2` previsualiza evoluciones en el selector (depuración).
+- Pruebas: `packages/shared/test/evolution.test.ts` (umbrales, PS por etapa, persistencia,
+  Premonición, reinicio al cambiar de personaje); 51 en total.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

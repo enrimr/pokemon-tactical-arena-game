@@ -1,7 +1,7 @@
 import {
   BTN, buildAuroraMap, CAMERA_HEIGHT, CAMERA_HEIGHT_CROUCH, CharacterId, defaultInput,
   fireCooldownTicks, lookDir, MapDef, PlayerInput, PlayerState, raycastMap, SnapPlayer,
-  Snapshot, STR, Team, TICK_RATE, vdistXZ, WEAPONS, currentSpreadDeg, angleDiff,
+  Snapshot, STR, Team, TICK_RATE, vdistXZ, WEAPONS, currentSpreadDeg, angleDiff, characterDisplayName,
   stepMovement, v3, Vec3,
 } from '@pta/shared';
 import { GameRenderer, PlayerView } from './renderer.js';
@@ -159,6 +159,7 @@ export class GameClient {
       alive: true, hp: 100, shield: 0, credits: 0,
       weapon: 'pulso' as const, ammo: 16, reloadTicksLeft: 0, fireCooldown: 0, burstShots: 0, lastFireTick: -99,
       abilityCharges: 0, grenadeCharges: 0, defuseKit: false,
+      evoStage: 0, evoPoints: 0,
       pos: v3(0, 0, -20), vel: v3(), yaw: 0, pitch: 0,
       crouching: false, walking: false, aiming: false, onGround: true, slowFactor: 1,
       hasCore: false, interaction: null, flashEndTick: 0, prevButtons: 0,
@@ -429,6 +430,17 @@ export class GameClient {
       case 'desactivado':
         this.hud.centerMessage(STR.nucleoDesactivado, '', 2200);
         break;
+      case 'evolucion': {
+        const quien = this.registry.get(e.player);
+        const nombre = quien ? characterDisplayName(quien.character, e.stage) : '';
+        if (e.player === this.myId) {
+          this.hud.centerMessage(`¡Has evolucionado a ${nombre}!`, 'PS máx. +15 · recarga más rápida · habilidad recargada', 3000);
+          audio.evolucion();
+        } else if (quien) {
+          this.hud.addKill('✨', `${quien.nombre} evolucionó a ${nombre}`, (quien.team ?? 0) as Team, false, null);
+        }
+        break;
+      }
       case 'nucleoSuelto':
         this.hud.centerMessage(STR.nucleoSoltado, '', 1500);
         break;
@@ -604,6 +616,7 @@ export class GameClient {
         interacting: (p.interactTicksLeft ?? 0) > 0 || this.time - (this.lastInteractAt.get(id) ?? -9) < 0.6,
         esBot: p.esBot, nombre: p.nombre,
         weapon: p.weapon ?? 'pulso',
+        evoStage: p.evoStage ?? 0,
       });
       if (this.spectateId === id) {
         specView = { pos: v3(pos.x, pos.y + (p.crouching ? CAMERA_HEIGHT_CROUCH : CAMERA_HEIGHT), pos.z), yaw, pitch };

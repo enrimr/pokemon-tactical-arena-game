@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CharacterId, WeaponId } from '@pta/shared';
+import { EVO_SCALE } from '@pta/shared';
 import { settings } from './settings.js';
 import { createOfficialModel } from './officialModels.js';
 
@@ -120,6 +121,7 @@ export const CHARACTER_COLORS: Record<CharacterId, number> = {
   charmander: 0xff7a2f,
   squirtle: 0x74c6ff,
   bulbasaur: 0x8ee67a,
+  mewtwo: 0xcf9af2,
 };
 
 // ===== Indicador de ataque: la forma del orbe revela el perfil equipado =====
@@ -619,27 +621,253 @@ function buildBulbasaur(): Rig {
   return { root, body, head, legL, legR, legBL, legBR, indicator, muzzle, quad: true };
 }
 
+// ===== Mewtwo: bípedo esbelto gris lavanda, vientre y cola púrpura, cuernos-oreja =====
+function buildMewtwo(): Rig {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const GRAY = 0xd9d3e8;
+  const PURPLE = 0x7a4a9e;
+
+  // Torso delgado con caderas estrechas y pecho alto
+  const torso = sphere(0.21, GRAY, 1, 1.6, 0.78);
+  torso.position.y = 0.68;
+  body.add(torso);
+  const belly = sphere(0.16, PURPLE, 0.85, 1.1, 0.5);
+  belly.position.set(0, 0.6, -0.12);
+  body.add(belly);
+  const hips = sphere(0.17, GRAY, 1.05, 0.8, 0.9);
+  hips.position.y = 0.42;
+  body.add(hips);
+  // Hombreras marcadas
+  for (const s of [-1, 1]) {
+    const shoulder = sphere(0.085, GRAY);
+    shoulder.position.set(0.2 * s, 0.92, -0.02);
+    body.add(shoulder);
+  }
+
+  const head = new THREE.Group();
+  head.position.y = 1.18;
+  body.add(head);
+  const skull = sphere(0.17, GRAY, 1, 1.18, 1.02);
+  head.add(skull);
+  eyes(head, 0.02, -0.15, 0.08, 0.045, 0x8a3bc0);
+  // Cuernos-oreja hacia arriba y atrás
+  for (const s of [-1, 1]) {
+    const horn = cone(0.055, 0.3, GRAY);
+    horn.position.set(0.1 * s, 0.26, 0.07);
+    horn.rotation.z = -0.45 * s;
+    horn.rotation.x = 0.4;
+    head.add(horn);
+  }
+  // Tubo nuca → espalda, rasgo característico
+  blobChain(body, [[0, 1.22, 0.13], [0, 1.1, 0.28], [0, 0.95, 0.3], [0, 0.85, 0.22]], 0.045, 0.035, PURPLE, 8);
+
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(-0.12, 0.34, 0);
+  legR.position.set(0.12, 0.34, 0);
+  for (const g of [legL, legR]) {
+    const thigh = sphere(0.1, GRAY, 0.9, 1.5, 1);
+    thigh.position.y = -0.1;
+    g.add(thigh);
+    const shin = sphere(0.055, GRAY, 0.8, 1.4, 0.9);
+    shin.position.set(0, -0.26, -0.02);
+    g.add(shin);
+    const foot = sphere(0.07, PURPLE, 1, 0.5, 1.6);
+    foot.position.set(0, -0.33, -0.06);
+    g.add(foot);
+  }
+  body.add(legL, legR);
+
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(-0.24, 0.88, -0.04);
+  armR.position.set(0.24, 0.88, -0.04);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    const arm = sphere(0.055, GRAY, 0.9, 1.7, 0.9);
+    arm.position.set(0.02 * s, -0.14, 0);
+    g.add(arm);
+    // Mano de tres dedos esféricos púrpura
+    for (let f = 0; f < 3; f++) {
+      const finger = sphere(0.028, PURPLE);
+      finger.position.set(0.02 * s + (f - 1) * 0.035, -0.3, -0.03);
+      g.add(finger);
+    }
+  }
+  body.add(armL, armR);
+
+  // Cola gruesa y larga que ondula hacia atrás
+  const tail = new THREE.Group();
+  blobChain(tail, [[0, 0.42, 0.2], [0, 0.3, 0.5], [0, 0.34, 0.8], [0, 0.52, 1.0]], 0.085, 0.03, PURPLE, 14);
+  body.add(tail);
+
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.mewtwo, 0, 1.0, -0.5);
+  return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
+}
+
 const BUILDERS: Record<CharacterId, () => Rig> = {
   pikachu: buildPikachu,
   charmander: buildCharmander,
   squirtle: buildSquirtle,
   bulbasaur: buildBulbasaur,
+  mewtwo: buildMewtwo,
 };
 
-/**
- * Crea el modelo del personaje: el oficial (si el ajuste está activo y el .glb
- * local ya está cargado) o el procedural propio.
- */
-export function createCharacterModel(id: CharacterId): CharacterModel {
-  if (settings.modelosOficiales) {
-    const oficial = createOfficialModel(id);
-    if (oficial) return oficial;
-  }
-  return createProceduralModel(id);
+// ===== Evoluciones: recolor + rasgos añadidos sobre el modelo base =====
+
+/** Sustituye materiales por color (los materiales se comparten vía caché: no se mutan). */
+function recolor(root: THREE.Object3D, palette: Record<number, number>): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const m = mesh.material as THREE.MeshStandardMaterial;
+    if (!m || !(m as { isMeshStandardMaterial?: boolean }).isMeshStandardMaterial) return;
+    const nuevo = palette[m.color.getHex()];
+    if (nuevo !== undefined) mesh.material = mat(nuevo);
+  });
 }
 
-export function createProceduralModel(id: CharacterId): CharacterModel {
+/** Añade los rasgos de la etapa evolutiva al rig base (ver EVOLUTIONS). */
+function applyEvolution(rig: Rig, id: CharacterId, stage: number): void {
+  const body = rig.body;
+  if (id === 'pikachu') {
+    // Raichu: naranja, mejillas amarillas, cola fina larga con punta en rayo
+    recolor(rig.root, { 0xf7d02c: 0xe08a35, 0xe3bd20: 0xc7712c, 0xdd3b3b: 0xf7e04a });
+    if (rig.tail) {
+      rig.tail.clear();
+      rig.tail.position.set(0, 0.45, 0.28);
+      rig.tail.rotation.set(-0.2, 0, 0);
+      blobChain(rig.tail, [[0, 0, 0], [0, 0.1, 0.22], [0, 0.38, 0.38], [0, 0.68, 0.42]], 0.042, 0.028, 0x6b4a2a, 12);
+      const punta = box(0.26, 0.2, 0.04, 0xf7d02c);
+      punta.position.set(0.04, 0.78, 0.44);
+      punta.rotation.z = 0.5;
+      rig.tail.add(punta);
+      const punta2 = box(0.16, 0.14, 0.04, 0xf7d02c);
+      punta2.position.set(-0.08, 0.7, 0.44);
+      punta2.rotation.z = -0.4;
+      rig.tail.add(punta2);
+    }
+  } else if (id === 'charmander') {
+    if (stage === 1) {
+      // Charmeleon: rojo intenso y cuerno hacia atrás
+      recolor(rig.root, { 0xee8130: 0xd04a30, 0xf0a05a: 0xdd7a52 });
+      const horn = cone(0.07, 0.24, 0xd04a30);
+      horn.position.set(0, 0.2, 0.14);
+      horn.rotation.x = 0.75;
+      rig.head.add(horn);
+    } else {
+      // Charizard: naranja fuerte, dos cuernos y alas con membrana verde azulada
+      recolor(rig.root, { 0xee8130: 0xe8742c, 0xf6e3b4: 0xf0d9a0 });
+      for (const s of [-1, 1]) {
+        const horn = cone(0.05, 0.2, 0xe8742c);
+        horn.position.set(0.09 * s, 0.22, 0.12);
+        horn.rotation.x = 0.65;
+        horn.rotation.z = -0.2 * s;
+        rig.head.add(horn);
+        const wing = new THREE.Group();
+        wing.position.set(0.16 * s, 0.92, 0.16);
+        wing.rotation.z = 0.95 * s;
+        wing.rotation.y = -0.35 * s;
+        const memb = cone(0.4, 0.95, 0x3f8f96);
+        memb.scale.z *= 0.09;
+        memb.position.y = 0.42;
+        wing.add(memb);
+        const borde = cone(0.08, 1.0, 0xe8742c);
+        borde.scale.z *= 0.5;
+        borde.position.set(-0.3 * s, 0.45, 0);
+        borde.rotation.z = 0.25 * s;
+        wing.add(borde);
+        body.add(wing);
+      }
+    }
+  } else if (id === 'squirtle') {
+    if (stage === 1) {
+      // Wartortle: azul lavanda, orejas y cola esponjosas
+      recolor(rig.root, { 0x6390f0: 0x7d9fe8 });
+      for (const s of [-1, 1]) {
+        const ear = cone(0.06, 0.22, 0x9db7ee);
+        ear.position.set(0.14 * s, 0.26, 0.02);
+        ear.rotation.z = -0.55 * s;
+        rig.head.add(ear);
+      }
+      if (rig.tail) {
+        rig.tail.clear();
+        blobChain(rig.tail, [[0, 0.42, 0.3], [0, 0.34, 0.52], [0, 0.52, 0.68], [0.06, 0.74, 0.6], [0.1, 0.8, 0.44]], 0.12, 0.04, 0x9db7ee, 16);
+      }
+    } else {
+      // Blastoise: azul profundo, caparazón oscuro y dos cañones sobre los hombros
+      recolor(rig.root, { 0x6390f0: 0x4a7edb, 0x9db7ee: 0x6d93e3, 0x8a5a2b: 0x6e4a24 });
+      for (const s of [-1, 1]) {
+        const can = new THREE.Group();
+        can.position.set(0.2 * s, 0.95, 0.12);
+        can.rotation.x = -1.25;
+        can.rotation.z = 0.18 * s;
+        const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 0.42, 12), mat(0x8d9499));
+        tubo.castShadow = true;
+        can.add(tubo);
+        const bocaCan = sphere(0.048, 0x23282c, 1, 0.4, 1);
+        bocaCan.position.y = 0.21;
+        can.add(bocaCan);
+        body.add(can);
+      }
+    }
+  } else if (id === 'bulbasaur') {
+    if (stage === 1) {
+      // Ivysaur: capullo rosa sobre el bulbo
+      recolor(rig.root, { 0x59b5a2: 0x4ba396 });
+      const bud = sphere(0.13, 0xef87b5, 1, 1.25, 1);
+      bud.position.set(0, 1.26, 0.24);
+      body.add(bud);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const petal = cone(0.07, 0.2, 0xe56ba4);
+        petal.scale.z *= 0.5;
+        petal.position.set(Math.cos(a) * 0.08, 1.34, 0.24 + Math.sin(a) * 0.08);
+        petal.rotation.set(Math.sin(a) * 0.4, -a, -Math.cos(a) * 0.4);
+        body.add(petal);
+      }
+    } else {
+      // Venusaur: flor abierta con pétalos rosas y centro amarillo
+      recolor(rig.root, { 0x59b5a2: 0x3f9a84, 0x4caf50: 0x45a04a });
+      const centro = sphere(0.1, 0xf2d04a, 1, 0.6, 1);
+      centro.position.set(0, 1.3, 0.24);
+      body.add(centro);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.25;
+        const petal = cone(0.2, 0.42, 0xef87b5);
+        petal.scale.z *= 0.22;
+        petal.position.set(Math.cos(a) * 0.26, 1.26, 0.24 + Math.sin(a) * 0.26);
+        petal.rotation.set(Math.sin(a) * 1.25, -a, -Math.cos(a) * 1.25);
+        body.add(petal);
+      }
+    }
+  }
+}
+
+/**
+ * Crea el modelo del personaje en su etapa evolutiva: el oficial (si el ajuste
+ * está activo y el .glb de esa etapa ya está cargado) o el procedural propio.
+ */
+export function createCharacterModel(id: CharacterId, stage = 0): CharacterModel {
+  if (settings.modelosOficiales) {
+    const oficial = createOfficialModel(id, stage);
+    if (oficial) return oficial;
+  }
+  return createProceduralModel(id, stage);
+}
+
+export function createProceduralModel(id: CharacterId, stage = 0): CharacterModel {
   const rig = BUILDERS[id]();
+  if (stage > 0) {
+    applyEvolution(rig, id, stage);
+    // Etapa evolutiva: modelo mayor, en un grupo propio para no interferir con
+    // la compresión vertical de agacharse (que escala root.scale.y)
+    const evo = new THREE.Group();
+    for (const child of [...rig.root.children]) evo.add(child);
+    evo.scale.setScalar(EVO_SCALE[Math.min(stage, 2) as 0 | 1 | 2]);
+    rig.root.add(evo);
+  }
   const update = (pose: Pose, time: number): void => {
     const r = rig;
     const walk = Math.min(1, pose.speed);

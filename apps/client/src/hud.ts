@@ -1,5 +1,8 @@
 import type { EnemyMarker, MapDef, MatchState, SnapPlayer, Snapshot, Team, WeaponId, ZoneState } from '@pta/shared';
-import { ATTACK_NAMES, CHARACTER_INFO, STR, TICK_RATE, WEAPONS, inRect } from '@pta/shared';
+import {
+  ATTACK_NAMES, CHARACTER_INFO, CHARACTERS, characterDisplayName, EVO_THRESHOLDS,
+  maxEvoStage, STR, TICK_RATE, WEAPONS, inRect,
+} from '@pta/shared';
 import { settings } from './settings.js';
 
 function el(tag: string, cls: string, parent: HTMLElement): HTMLElement {
@@ -246,6 +249,12 @@ export class Hud {
       this.ammoText.textContent = (self.reloadTicksLeft ?? 0) > 0 ? '···' : `${self.ammo ?? 0} / ${w.cargador}`;
       const util: string[] = [];
       if ((self.abilityCharges ?? 0) > 0) util.push(`Q ${CHARACTER_INFO[self.character].habilidad}`);
+      const maxEvo = maxEvoStage(self.character);
+      const stage = self.evoStage ?? 0;
+      if (maxEvo > 0 && self.evoPoints !== undefined) {
+        if (stage < maxEvo) util.push(`Evolución ${Math.min(self.evoPoints, EVO_THRESHOLDS[stage])}/${EVO_THRESHOLDS[stage]}`);
+        else util.push(`${characterDisplayName(self.character, stage)} (final)`);
+      }
       if ((self.grenadeCharges ?? 0) > 0) util.push('G Niebla');
       if (self.defuseKit) util.push('Kit');
       if (self.hasCore) util.push(`◆ ${STR.llevasNucleo}`);
@@ -354,7 +363,7 @@ export class Hud {
       `<button class="buy-item" data-item="${id}" ${owned || disabled || credits < precio ? 'disabled' : ''}>
          <span>${nombre}</span><span class="price">${owned ? STR.equipado : precio === 0 ? '—' : precio + ' cr'}</span>
        </button>`;
-    const charBtns = (['pikachu', 'charmander', 'squirtle', 'bulbasaur'] as const)
+    const charBtns = CHARACTERS
       .map((c) => `<button class="char-btn ${self.character === c ? 'sel' : ''}" data-char="${c}">${CHARACTER_INFO[c].nombre}</button>`)
       .join('');
     this.buyMenu.innerHTML = `

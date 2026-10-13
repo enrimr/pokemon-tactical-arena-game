@@ -54,6 +54,7 @@ export interface SnapPlayer {
   aiming: boolean;
   hasCore: boolean;
   esBot: boolean;
+  evoStage: number;           // etapa evolutiva, visible para todos (cambia el modelo)
   // Campos solo presentes para uno mismo / aliados:
   hp?: number;
   shield?: number;
@@ -64,6 +65,7 @@ export interface SnapPlayer {
   abilityCharges?: number;
   grenadeCharges?: number;
   defuseKit?: boolean;
+  evoPoints?: number;
   interactTicksLeft?: number;
   interactTotal?: number;
   flashTicksLeft?: number;

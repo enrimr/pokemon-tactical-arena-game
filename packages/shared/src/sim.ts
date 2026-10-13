@@ -3,6 +3,8 @@ import {
   CAMERA_HEIGHT_CROUCH, CharacterId, CORE_COUNTDOWN_S, CORE_PICKUP_DIST, CORTINA_DURATION_S,
   CORTINA_RADIUS, DEFUSE_KIT_COST, DEFUSE_KIT_S, DEFUSE_MAX_DIST, DEFUSE_S, ECO_DEFUSE,
   ECO_KILL, ECO_LOSS_BASE, ECO_LOSS_STREAK_MAX_BONUS, ECO_LOSS_STREAK_STEP, ECO_MAX,
+  EVO_ASSIST_POINTS, EVO_KILL_POINTS, EVO_OBJECTIVE_POINTS, EVO_RELOAD_MULT, EVO_THRESHOLDS,
+  EVO_HP_BONUS, maxEvoStage, maxHpFor, PREMONICION_DURATION_S, PREMONICION_RADIUS,
   ECO_PLANT, ECO_START, ECO_WIN, EMBER_DPS, EMBER_DURATION_S, EMBER_RADIUS, ENEMY_MARKER_S,
   FLASH_FUSE_S, FLASH_MAX_S, FLASH_MIN_S, FLASH_RADIUS, GRAVITY, HEAD_MULT, HEAD_OFFSET,
   HEAD_OFFSET_CROUCH, HEAD_SPHERE_RADIUS, HEAR_FIRE_DIST, HEAR_JUMP_DIST, HEAR_RUN_DIST,
@@ -69,6 +71,8 @@ export class GameSim {
   private history: Map<number, HistEntry>[] = [];
   private events: SimEvent[] = [];
   private lastSeen: [Map<number, LastSeen>, Map<number, LastSeen>] = [new Map(), new Map()];
+  /** Enemigos revelados por Premonición: id → tick de expiración, por equipo observador. */
+  private marked: [Map<number, number>, Map<number, number>] = [new Map(), new Map()];
   private brains = new Map<number, BotBrain>();
   private firedThisTick = new Set<number>();
   private botTakeoverAt = new Map<number, number>(); // tick en que un bot asume el control
@@ -101,6 +105,7 @@ export class GameSim {
       weapon: 'pulso', ammo: WEAPONS.pulso.cargador, reloadTicksLeft: 0,
       fireCooldown: 0, burstShots: 0, lastFireTick: -999,
       abilityCharges: 0, grenadeCharges: 0, defuseKit: false,
+      evoStage: 0, evoPoints: 0,
       pos: v3(), vel: v3(), yaw: 0, pitch: 0,
       crouching: false, walking: false, aiming: false, onGround: true, slowFactor: 1,
       hasCore: false, interaction: null, flashEndTick: 0, prevButtons: 0,
@@ -176,13 +181,14 @@ export class GameSim {
     this.zones = [];
     this.projectiles = [];
     this.lastSeen = [new Map(), new Map()];
+    this.marked = [new Map(), new Map()];
 
     let atkIdx = 0;
     let defIdx = 0;
     for (const p of this.playersSorted()) {
       const survived = p.alive;
       p.alive = true;
-      p.hp = MAX_HP;
+      p.hp = maxHpFor(p.evoStage);
       p.vel = v3();
       p.crouching = false;
       p.interaction = null;
@@ -361,6 +367,8 @@ export class GameSim {
     if (p.character === character) return { ok: true };
     p.character = character;
     p.abilityCharges = 0; // la carga específica se pierde sin reembolso
+    p.evoStage = 0;       // cambiar de especie reinicia la cadena evolutiva
+    p.evoPoints = 0;
     return { ok: true };
   }
 
@@ -490,13 +498,13 @@ export class GameSim {
         if (this.tick >= at) {
           const p = this.players.get(id)!;
           p.alive = true;
-          p.hp = MAX_HP;
+          p.hp = maxHpFor(p.evoStage);
           p.ammo = WEAPONS[p.weapon].cargador;
           const spawn = this.isAttacker(p) ? this.map.attackerSpawn : this.map.defenderSpawn;
           const pt = spawn.points[p.id % spawn.points.length];
           if (this.dummies.has(id)) {
             // Los muñecos reaparecen donde cayeron
-            p.hp = MAX_HP;
+            p.hp = maxHpFor(p.evoStage);
           } else {
             p.pos = vclone(pt.pos);
             p.yaw = pt.yaw;
@@ -552,7 +560,7 @@ export class GameSim {
 
     // Recarga
     if (this.edge(p, input, BTN.RELOAD) && p.reloadTicksLeft === 0 && p.ammo < WEAPONS[p.weapon].cargador && p.interaction === null) {
-      p.reloadTicksLeft = reloadTicks(p.weapon, TICK_RATE);
+      p.reloadTicksLeft = Math.max(1, Math.round(reloadTicks(p.weapon, TICK_RATE) * Math.pow(EVO_RELOAD_MULT, p.evoStage)));
       this.pushEvent({ e: 'sonido', tipo: 'recarga', pos: vclone(p.pos), radio: 8, team: p.team, actor: p.id });
     }
 
@@ -572,7 +580,7 @@ export class GameSim {
       if (this.edge(p, input, BTN.ABILITY) && p.abilityCharges > 0) {
         p.abilityCharges--;
         p.interaction = null;
-        this.throwUtility(p, p.character === 'pikachu' ? 'destello' : p.character === 'charmander' ? 'ascua' : p.character === 'squirtle' ? 'cortina' : 'esporas');
+        this.throwUtility(p, ({ pikachu: 'destello', charmander: 'ascua', squirtle: 'cortina', bulbasaur: 'esporas', mewtwo: 'premonicion' } as const)[p.character]);
       }
       if (this.edge(p, input, BTN.GRENADE) && p.grenadeCharges > 0) {
         p.grenadeCharges--;
@@ -676,6 +684,7 @@ export class GameSim {
     if (killer && killer.team !== victim.team) {
       killer.kills++;
       killer.credits = Math.min(ECO_MAX, killer.credits + ECO_KILL);
+      this.addEvoPoints(killer, EVO_KILL_POINTS);
     }
     // Asistencia: ≥30 de daño en los últimos 5 s, sin ser el autor de la baja
     const windowStart = this.tick - ASSIST_WINDOW_S * TICK_RATE;
@@ -692,8 +701,29 @@ export class GameSim {
       if (!a || a.team === victim.team) continue;
       if (amount >= ASSIST_MIN_DAMAGE && amount > bestAmount) { assist = id; bestAmount = amount; }
     }
-    if (assist !== null) this.players.get(assist)!.assists++;
+    if (assist !== null) {
+      const a = this.players.get(assist)!;
+      a.assists++;
+      this.addEvoPoints(a, EVO_ASSIST_POINTS);
+    }
     this.pushEvent({ e: 'baja', killer: killerId, victim: victim.id, assist, headshot });
+  }
+
+  /**
+   * Suma energía de evolución y evoluciona al alcanzar el umbral: sube la
+   * etapa, aumenta y cura PS, y recarga la habilidad. Persiste entre rondas.
+   */
+  private addEvoPoints(p: PlayerState, points: number): void {
+    const maxStage = maxEvoStage(p.character);
+    if (p.evoStage >= maxStage) return;
+    p.evoPoints += points;
+    while (p.evoStage < maxStage && p.evoPoints >= EVO_THRESHOLDS[p.evoStage]) {
+      p.evoStage++;
+      if (p.alive) p.hp = Math.min(maxHpFor(p.evoStage), p.hp + EVO_HP_BONUS);
+      p.abilityCharges = 1;
+      this.pushEvent({ e: 'evolucion', player: p.id, stage: p.evoStage });
+      this.pushEvent({ e: 'sonido', tipo: 'despliegue', pos: vclone(p.pos), radio: 14, team: p.team, actor: p.id });
+    }
   }
 
   // ===== Interacciones (instalar / desactivar) =====
@@ -765,6 +795,7 @@ export class GameSim {
     this.core.pos = v3(p.pos.x, groundHeight(this.map, p.pos.x, p.pos.z, p.pos.y + 1), p.pos.z);
     p.hasCore = false;
     p.credits = Math.min(ECO_MAX, p.credits + ECO_PLANT);
+    this.addEvoPoints(p, EVO_OBJECTIVE_POINTS);
     this.match.phase = 'planted';
     this.match.phaseTicksLeft = CORE_COUNTDOWN_S * TICK_RATE;
     this.pushEvent({ e: 'instalado', site, por: p.id });
@@ -773,6 +804,7 @@ export class GameSim {
 
   private completeDefuse(p: PlayerState): void {
     p.credits = Math.min(ECO_MAX, p.credits + ECO_DEFUSE);
+    this.addEvoPoints(p, EVO_OBJECTIVE_POINTS);
     this.pushEvent({ e: 'desactivado', por: p.id });
     this.endRound((1 - this.match.attackingTeam) as Team, 'nucleo_desactivado');
   }
@@ -849,7 +881,7 @@ export class GameSim {
           const hit = raycastMap(this.map, proj.pos, dir, dist, this.match.phase === 'prep');
           if (hit) {
             const impact = v3(proj.pos.x + dir.x * hit.dist, proj.pos.y + dir.y * hit.dist, proj.pos.z + dir.z * hit.dist);
-            if (proj.type === 'destello') {
+            if (proj.type === 'destello' || proj.type === 'premonicion') {
               proj.pos = impact;
               proj.resting = true;
               proj.vel = v3();
@@ -870,10 +902,25 @@ export class GameSim {
         if (actionsAllowed) this.detonateFlash(proj);
         done = true;
       }
+      if (!done && proj.type === 'premonicion' && this.tick - proj.bornTick >= Math.round(FLASH_FUSE_S * TICK_RATE)) {
+        if (actionsAllowed) this.detonatePremonicion(proj);
+        done = true;
+      }
       if (!done && this.tick - proj.bornTick > 10 * TICK_RATE) done = true; // red de seguridad
       if (!done) remaining.push(proj);
     }
     this.projectiles = remaining;
+  }
+
+  /** Premonición: revela a los enemigos cercanos a través de las paredes. */
+  private detonatePremonicion(proj: ProjectileState): void {
+    this.pushEvent({ e: 'sonido', tipo: 'explosion', pos: vclone(proj.pos), radio: 16, team: proj.team, actor: proj.owner });
+    const hasta = this.tick + Math.round(PREMONICION_DURATION_S * TICK_RATE);
+    for (const p of this.players.values()) {
+      if (!p.alive || p.team === proj.team) continue;
+      if (vdist(p.pos, proj.pos) > PREMONICION_RADIUS) continue;
+      this.marked[proj.team].set(p.id, hasta);
+    }
   }
 
   private spawnZone(proj: ProjectileState, pos: Vec3): void {
@@ -882,7 +929,7 @@ export class GameSim {
       esporas: { radius: SPORE_RADIUS, dur: SPORE_DURATION_S },
       cortina: { radius: CORTINA_RADIUS, dur: CORTINA_DURATION_S },
       niebla: { radius: SMOKE_G_RADIUS, dur: SMOKE_G_DURATION_S },
-    }[proj.type as Exclude<ProjectileState['type'], 'destello'>];
+    }[proj.type as Exclude<ProjectileState['type'], 'destello' | 'premonicion'>];
     this.zones.push({
       id: this.nextEntityId++,
       type: proj.type as ZoneState['type'],
@@ -969,6 +1016,12 @@ export class GameSim {
   private updateLastSeen(): void {
     for (const team of [0, 1] as Team[]) {
       const seen = this.lastSeen[team];
+      // Revelados por Premonición: posición real aunque no haya línea de visión
+      for (const [id, hasta] of this.marked[team]) {
+        if (hasta <= this.tick) { this.marked[team].delete(id); continue; }
+        const enemy = this.players.get(id);
+        if (enemy?.alive) seen.set(id, { pos: vclone(enemy.pos), yaw: enemy.yaw, tick: this.tick });
+      }
       for (const enemy of this.players.values()) {
         if (enemy.team === team || !enemy.alive) continue;
         for (const viewer of this.players.values()) {
@@ -1010,7 +1063,7 @@ export class GameSim {
         alive: p.alive, pos: vclone(p.pos), vel: vclone(p.vel),
         yaw: p.yaw, pitch: p.pitch,
         crouching: p.crouching, walking: p.walking, aiming: p.aiming,
-        hasCore: p.hasCore, esBot: p.isBot,
+        hasCore: p.hasCore, esBot: p.isBot, evoStage: p.evoStage,
       };
       // El marcador y los resultados necesitan bajas/muertes de todos
       base.kills = p.kills; base.deaths = p.deaths; base.assists = p.assists; base.damageDealt = Math.round(p.damageDealt);
@@ -1028,6 +1081,7 @@ export class GameSim {
         base.interactTicksLeft = p.interaction?.ticksLeft;
         base.interactTotal = p.interaction?.totalTicks;
         base.flashTicksLeft = Math.max(0, p.flashEndTick - this.tick);
+        base.evoPoints = p.evoPoints;
       }
       players.push(base);
     }
