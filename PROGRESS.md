@@ -85,6 +85,17 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 - Pruebas: `packages/shared/test/evolution.test.ts` (umbrales, PS por etapa, persistencia,
   Premonición, reinicio al cambiar de personaje); 51 en total.
 
+## Efectos elementales de los ataques (2026-10-14)
+
+- Nuevo `apps/client/src/attackFx.ts`: el trazo cilíndrico se sustituye por efectos con
+  identidad elemental (solo presentación; el daño sigue siendo hitscan): rayo en zigzag con
+  ramas y parpadeo (Pikachu), cono de llamas que crece y asciende (Charmander), chorro de
+  agua con gotas —y burbujas en la ráfaga— (Squirtle), hojas giratorias y haz dorado en Rayo
+  Solar (Bulbasaur), anillos psíquicos en expansión (Mewtwo). El perfil modula tamaño,
+  intensidad y duración (preciso > pulso > ráfaga).
+- Geometrías compartidas, materiales aditivos por efecto, tope de 48 efectos simultáneos;
+  con «movimiento reducido» se mantiene el trazo sencillo y más corto de antes.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

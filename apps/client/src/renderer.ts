@@ -7,6 +7,7 @@ import {
   buildAttackIndicator, updateAttackIndicator,
 } from './models.js';
 import { settings } from './settings.js';
+import { createAttackFx, type AttackFx } from './attackFx.js';
 
 const TAG_STYLE: Record<SolidTag, { color: number; roughness?: number; emissive?: number }> = {
   suelo: { color: 0xd3d7d9 },
@@ -43,7 +44,6 @@ export interface PlayerView {
   weapon: WeaponId;
 }
 
-interface TracerFx { mesh: THREE.Mesh; until: number; }
 interface PuffFx { sprite: THREE.Sprite; until: number; vel: THREE.Vector3; }
 
 export class GameRenderer {
@@ -56,7 +56,7 @@ export class GameRenderer {
   private models = new Map<number, { model: CharacterModel; marker: THREE.Sprite; character: CharacterId; evoStage: number }>();
   private zoneFx = new Map<number, THREE.Group>();
   private projFx = new Map<number, THREE.Mesh>();
-  private tracers: TracerFx[] = [];
+  private attackFx: AttackFx[] = [];
   private puffs: PuffFx[] = [];
   private coreMesh: THREE.Group;
   private sun!: THREE.DirectionalLight;
@@ -415,21 +415,17 @@ export class GameRenderer {
 
   // ===== Efectos =====
 
-  spawnTracer(from: Vec3, to: Vec3, char: CharacterId): void {
-    const dir = new THREE.Vector3(to.x - from.x, to.y - from.y, to.z - from.z);
-    const len = dir.length();
-    if (len < 0.1) return;
-    const geo = new THREE.CylinderGeometry(0.015, 0.015, 1, 5);
-    geo.rotateX(Math.PI / 2);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-      color: CHARACTER_COLORS[char], transparent: true, opacity: 0.85,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    mesh.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
-    mesh.scale.z = len;
-    mesh.lookAt(to.x, to.y, to.z);
-    this.scene.add(mesh);
-    this.tracers.push({ mesh, until: performance.now() + 90 });
+  spawnTracer(from: Vec3, to: Vec3, char: CharacterId, weapon: WeaponId = 'pulso'): void {
+    const fx = createAttackFx(char, weapon, from, to, settings.movimientoReducido);
+    if (!fx) return;
+    this.scene.add(fx.group);
+    this.attackFx.push(fx);
+    // Tope de seguridad: con muchos tiradores, descartar los efectos más viejos
+    while (this.attackFx.length > 48) {
+      const viejo = this.attackFx.shift()!;
+      this.scene.remove(viejo.group);
+      viejo.dispose();
+    }
     if (settings.movimientoReducido === false) {
       this.spawnPuff(to, CHARACTER_COLORS[char], 0.12);
     }
@@ -569,16 +565,11 @@ export class GameRenderer {
 
   render(pos: Vec3, yaw: number, pitch: number, dt: number): void {
     const now = performance.now();
-    this.tracers = this.tracers.filter((t) => {
-      const left = t.until - now;
-      if (left <= 0) {
-        this.scene.remove(t.mesh);
-        t.mesh.geometry.dispose();
-        (t.mesh.material as THREE.Material).dispose();
-        return false;
-      }
-      (t.mesh.material as THREE.MeshBasicMaterial).opacity = left / 110;
-      return true;
+    this.attackFx = this.attackFx.filter((fx) => {
+      if (fx.update(dt)) return true;
+      this.scene.remove(fx.group);
+      fx.dispose();
+      return false;
     });
     this.puffs = this.puffs.filter((p) => {
       const left = p.until - now;
@@ -638,10 +629,7 @@ export class GameRenderer {
   dispose(): void {
     window.removeEventListener('pta-modelos', this.onModelsChanged);
     this.removeAllPlayers();
-    for (const t of this.tracers) {
-      t.mesh.geometry.dispose();
-      (t.mesh.material as THREE.Material).dispose();
-    }
+    for (const fx of this.attackFx) fx.dispose();
     for (const d of this.disposables) d.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

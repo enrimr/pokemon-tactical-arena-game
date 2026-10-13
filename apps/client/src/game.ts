@@ -355,7 +355,7 @@ export class GameClient {
       case 'trazo':
         this.lastFireAt.set(e.shooter, this.time);
         if (e.shooter !== this.myId) {
-          this.renderer.spawnTracer(e.from, e.to, e.char);
+          this.renderer.spawnTracer(e.from, e.to, e.char, e.weapon);
         }
         break;
       case 'sonido': {
@@ -526,6 +526,7 @@ export class GameClient {
         { x: eye.x + dir.x * 0.4, y: eye.y - 0.15, z: eye.z + dir.z * 0.4 },
         { x: eye.x + dir.x * d, y: eye.y + dir.y * d, z: eye.z + dir.z * d },
         selfSnap?.character ?? 'pikachu',
+        this.self.weapon,
       );
     }
     if ((inp.buttons & BTN.RELOAD) !== 0 && this.localReload <= 0 && this.localAmmo < WEAPONS[this.self.weapon].cargador) {
