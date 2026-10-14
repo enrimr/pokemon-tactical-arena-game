@@ -1,4 +1,4 @@
-import type { C2S, S2C } from '@pta/shared';
+import type { C2S, MapId, S2C } from '@pta/shared';
 import { encode } from '@pta/shared';
 
 export interface Transport {
@@ -52,6 +52,7 @@ export interface WorkerConfig {
   personaje: string;
   dificultad: 'facil' | 'normal' | 'dificil';
   seed: number;
+  mapa: MapId;
 }
 
 export class WorkerTransport implements Transport {

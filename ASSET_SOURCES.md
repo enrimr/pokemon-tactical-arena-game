@@ -31,15 +31,43 @@ Fecha de acceso: 2026-10-08. Búsqueda real realizada contra la API pública de 
 | Recurso | Archivo | Origen | Licencia del archivo |
 | --- | --- | --- | --- |
 | Modelos 3D de Pikachu, Charmander, Squirtle y Bulbasaur | `apps/client/src/models.ts` (jerarquías procedurales Three.js, por partes, animadas por código) | Generados localmente para este proyecto | Mismo que el código del proyecto |
-| Mapa «Estación Aurora» (geometría, puertas, zonas) | `packages/shared/src/map.ts` | Diseño original propio | — |
-| Textura de hormigón | `apps/client/src/renderer.ts` (`concreteTexture()`, canvas procedural) | Generada localmente | — |
+| Mapas «Estación Aurora», «Bosque Verde» y «Pueblo Paleta» (geometría, puertas, zonas) | `packages/shared/src/map.ts`, `packages/shared/src/mapas.ts` | Diseño propio; Bosque Verde y Pueblo Paleta son recreaciones de los escenarios de los juegos hechas desde cero (sin datos ni gráficos extraídos) | — |
+| Textura de hormigón (reserva) | `apps/client/src/renderer.ts` (`concreteTexture()`, canvas procedural) | Generada localmente | — |
+| Texturas del mapa (suelo, muros, cajas, madera, chapa, metal) | `apps/client/public/texturas/*.jpg` | ambientCG (ver sección «Texturas del mapa») | CC0 1.0 (dominio público) |
 | Letreros/sprites de texto (A/B, nombres) | `apps/client/src/renderer.ts` (canvas) | Generados localmente | — |
+| Ambientación Pokémon: murales «mapa de la región», letreros de ruta, pokéball de las zonas, hierba alta | `apps/client/src/renderer.ts` (`buildPokemonTheming()`, canvas procedural) | Dibujados localmente, inspirados en los juegos (sin extraer gráficos; ver aviso final) | — |
 | Todos los sonidos (disparos, pasos, recarga, habilidades, núcleo, música de menú) | `apps/client/src/audio.ts` (síntesis WebAudio en tiempo real: osciladores + ruido) | Sintetizados localmente, sin muestras externas | — |
 | Interfaz (HTML/CSS) | `apps/client/src/styles.css` | Propia | — |
 
 No se descargó, extrajo ni incluyó ningún archivo de audio, modelo, textura o interfaz de
 terceros ni de juegos comerciales. No hay dependencias de CDN en tiempo de ejecución
 (única excepción, opcional y desactivada por defecto: ver «Modelos oficiales opcionales»).
+
+## Texturas del mapa (CC0, incluidas en el repositorio)
+
+Añadido el 2026-10-14. Las superficies del mapa usan texturas fotográficas de
+**ambientCG** (https://ambientcg.com), cuyo catálogo completo se publica bajo
+**Creative Commons CC0 1.0** (dominio público): se permite usar, modificar y
+redistribuir sin atribución, también con fines comerciales. Por eso, a diferencia
+de los modelos oficiales, estos archivos **sí** están en el repositorio
+(`apps/client/public/texturas/`) y en el despliegue.
+
+Descarga reproducible con `npm run texturas` (`tools/descargar-texturas.mjs`),
+que baja los zips 1K-JPG, conserva los mapas de color y de normales (estos
+reducidos a 512 px) y los renombra:
+
+| Archivo local | Asset de ambientCG | Uso en el mapa |
+| --- | --- | --- |
+| `hormigon-suelo_*` | Concrete034 | suelo y rampas |
+| `yeso-muro_*` | Plaster001 | muros, muros bajos y pilares |
+| `placas-metal_*` | CorrugatedSteel005 | cajas altas (coberturas) |
+| `madera_*` | Planks037A | cajas bajas y jardineras |
+| `chapa-metal_*` | DiamondPlate008C | pasarela central |
+| `metal-oxidado_*` | Metal009 | tuberías |
+| `cesped_*` | Grass004 | suelo de Bosque Verde y Pueblo Paleta |
+
+Si los archivos faltan (p. ej. clon sin ellos y sin ejecutar el script), el juego
+sigue funcionando con la textura procedural de hormigón y los colores planos.
 
 ## Modelos oficiales opcionales (no incluidos ni distribuidos)
 

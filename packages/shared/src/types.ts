@@ -1,5 +1,5 @@
 import { Vec3 } from './math.js';
-import { CharacterId, Team, WeaponId } from './constants.js';
+import { CharacterId, PokeballPrize, Team, WeaponId } from './constants.js';
 
 export const BTN = {
   FIRE: 1 << 0,
@@ -118,7 +118,7 @@ export interface ZoneState {
   owner: number;
 }
 
-export type ProjectileType = 'destello' | 'ascua' | 'cortina' | 'esporas' | 'niebla' | 'premonicion';
+export type ProjectileType = 'destello' | 'ascua' | 'cortina' | 'esporas' | 'niebla' | 'premonicion' | 'explosivo';
 
 export interface ProjectileState {
   id: number;
@@ -129,6 +129,12 @@ export interface ProjectileState {
   vel: Vec3;
   bornTick: number;
   resting: boolean;
+}
+
+/** Pokéball en el suelo, pendiente de recoger. El premio se decide al abrirla. */
+export interface PickupState {
+  id: number;
+  pos: Vec3;
 }
 
 export interface MatchState {
@@ -157,6 +163,10 @@ export type SimEvent =
   | { e: 'nucleoSuelto'; pos: Vec3 }
   | { e: 'nucleoRecogido'; por: number }
   | { e: 'compra'; player: number; item: string }
-  | { e: 'evolucion'; player: number; stage: number };
+  | { e: 'evolucion'; player: number; stage: number }
+  /** detalle: arma aprendida (mt) o 'habilidad'/'granada' (mo) */
+  | { e: 'pokeball'; player: number; premio: PokeballPrize; cantidad: number; detalle?: string }
+  /** detonación de un ataque explosivo (solo presentación; el daño va por 'impacto') */
+  | { e: 'explosionFx'; pos: Vec3; char: CharacterId; radius: number };
 
 export interface LastSeen { pos: Vec3; yaw: number; tick: number; }

@@ -1,4 +1,4 @@
-import type { EnemyMarker, MapDef, MatchState, SnapPlayer, Snapshot, Team, WeaponId, ZoneState } from '@pta/shared';
+import type { EnemyMarker, MapDef, MatchState, PickupState, SnapPlayer, Snapshot, Team, WeaponId, ZoneState } from '@pta/shared';
 import {
   ATTACK_NAMES, CHARACTER_INFO, CHARACTERS, characterDisplayName, EVO_THRESHOLDS,
   maxEvoStage, STR, TICK_RATE, WEAPONS, inRect,
@@ -164,7 +164,7 @@ export class Hud {
 
   drawMinimap(
     players: SnapPlayer[], markers: EnemyMarker[], myId: number, myTeam: Team,
-    zones: ZoneState[], corePos: { x: number; z: number } | null,
+    zones: ZoneState[], corePos: { x: number; z: number } | null, pickups: PickupState[] = [],
   ): void {
     const ctx = this.minimapCanvas.getContext('2d')!;
     const { sx, sz, ox, oz } = this.mmScale();
@@ -184,6 +184,16 @@ export class Hud {
       const [x, y] = pt(corePos.x, corePos.z);
       ctx.fillStyle = '#53e0e8';
       ctx.fillRect(x - 3, y - 3, 6, 6);
+    }
+    for (const pk of pickups) {
+      const [x, y] = pt(pk.pos.x, pk.pos.z);
+      ctx.fillStyle = '#ff5d5d';
+      ctx.beginPath();
+      ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
     for (const m of markers) {
       const alpha = 1 - m.ageTicks / (2 * TICK_RATE);
@@ -371,6 +381,7 @@ export class Hud {
       <div class="buy-grid">
         ${item('rafaga', `${ATTACK_NAMES[self.character].rafaga} · ${WEAPONS.rafaga.nombre}`, WEAPONS.rafaga.precio, self.weapon === 'rafaga', false)}
         ${item('preciso', `${ATTACK_NAMES[self.character].preciso} · ${WEAPONS.preciso.nombre}`, WEAPONS.preciso.precio, self.weapon === 'preciso', false)}
+        ${item('explosivo', `${ATTACK_NAMES[self.character].explosivo} · ${WEAPONS.explosivo.nombre}`, WEAPONS.explosivo.precio, self.weapon === 'explosivo', false)}
         ${item('escudo', 'Escudo (50)', 650, (self.shield ?? 0) >= 50, false)}
         ${item('habilidad', `Q · ${CHARACTER_INFO[self.character].habilidad}`, 400, (self.abilityCharges ?? 0) > 0, false)}
         ${item('granada', 'G · Granada de niebla', 300, (self.grenadeCharges ?? 0) > 0, false)}

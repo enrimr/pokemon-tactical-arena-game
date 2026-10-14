@@ -16,6 +16,9 @@ page.on('console', (m) => {
   if (m.type() === 'error') errors.push(`console.error: ${m.text()}`);
 });
 
+// Capturas con los modelos oficiales de Pokémon (descargados en local)
+await page.addInitScript(() => localStorage.setItem('pta-ajustes-v1', JSON.stringify({ modelosOficiales: true })));
+
 console.log('→ Menú principal');
 await page.goto(BASE + '/?entrada-simulada');
 await page.waitForSelector('.menu-nav button');

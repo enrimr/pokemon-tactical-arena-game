@@ -113,7 +113,7 @@ class AudioEngine {
 
   disparo(weapon: WeaponId, char: CharacterId, pos?: [number, number, number]): void {
     if (!this.ready) return;
-    const base = { pulso: [700, 180, 0.12, 0.35], rafaga: [900, 240, 0.09, 0.3], preciso: [1400, 90, 0.3, 0.5] }[weapon];
+    const base = { pulso: [700, 180, 0.12, 0.35], rafaga: [900, 240, 0.09, 0.3], preciso: [1400, 90, 0.3, 0.5], explosivo: [320, 60, 0.22, 0.55] }[weapon];
     const flavor: Record<CharacterId, OscillatorType> = { pikachu: 'square', charmander: 'sawtooth', squirtle: 'sine', bulbasaur: 'triangle', mewtwo: 'sine' };
     const dest = this.out(pos);
     const g = this.env(dest, base[2], base[3]);
@@ -133,6 +133,13 @@ class AudioEngine {
         this.osc('triangle', f, f * 1.01, 0.12, g);
       }, i * 90);
     });
+  }
+
+  /** Campanilla ascendente al abrir una pokéball (solo el propio jugador). */
+  pokeball(): void {
+    if (!this.ready) return;
+    this.osc('triangle', 988, 1175, 0.09, this.env(this.sfx, 0.09, 0.3));
+    setTimeout(() => this.ready && this.osc('triangle', 1319, 1760, 0.14, this.env(this.sfx, 0.14, 0.32)), 100);
   }
 
   pasos(pos?: [number, number, number]): void {

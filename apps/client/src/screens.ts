@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
-  ATTACK_NAMES, CHARACTERS, CHARACTER_INFO, CharacterId, EVOLUTIONS, LobbyState, S2C, SnapPlayer, STR, Team, WEAPONS,
+  ATTACK_NAMES, CHARACTERS, CHARACTER_INFO, CharacterId, EVOLUTIONS, LobbyState, MapId,
+  MAP_IDS, MAP_INFO, S2C, SnapPlayer, STR, Team, WEAPONS,
 } from '@pta/shared';
 import { createCharacterModel, CharacterModel } from './models.js';
 import { GameClient } from './game.js';
@@ -161,6 +162,10 @@ export class App {
     const s = this.screen('charselect');
     let char: CharacterId = (settings as { ultimoPersonaje?: CharacterId } & typeof settings).ultimoPersonaje ?? 'pikachu';
     let dificultad: 'facil' | 'normal' | 'dificil' = 'normal';
+    let mapa: MapId = 'aurora';
+    const mapOptions = MAP_IDS
+      .map((id) => `<option value="${id}">${MAP_INFO[id].nombre}</option>`)
+      .join('');
     s.innerHTML = `
       <h2>${STR.seleccionPersonaje}</h2>
       <div class="cs-wrap">
@@ -177,6 +182,9 @@ export class App {
               <option value="normal" selected>Normal</option>
               <option value="dificil">Difícil</option>
             </select></label>` : `<p>${STR.munecos}: 3 estáticos y 2 móviles. ${STR.practicaNucleo} incluido. Compra libre.</p>`}
+          <label class="set-row"><span>Mapa</span>
+            <select id="cs-map">${mapOptions}</select></label>
+          <p id="cs-map-desc" class="hint">${MAP_INFO.aurora.descripcion}</p>
           <button class="menu-btn primary" id="cs-play">${modo === 'solo' ? STR.jugarBots : STR.entrenamiento}</button>
           <button class="menu-btn" id="cs-back">${STR.volver}</button>
         </div>
@@ -186,7 +194,7 @@ export class App {
       s.querySelector('#cs-name')!.textContent = CHARACTER_INFO[char].nombre;
       const atk = ATTACK_NAMES[char];
       s.querySelector('#cs-attacks')!.textContent =
-        `Ataques: ${atk.pulso} (${WEAPONS.pulso.nombre.toLowerCase()}) · ${atk.rafaga} (${WEAPONS.rafaga.precio} cr) · ${atk.preciso} (${WEAPONS.preciso.precio} cr)`;
+        `Ataques: ${atk.pulso} (${WEAPONS.pulso.nombre.toLowerCase()}) · ${atk.rafaga} (${WEAPONS.rafaga.precio} cr) · ${atk.preciso} (${WEAPONS.preciso.precio} cr) · ${atk.explosivo} (${WEAPONS.explosivo.precio} cr, en área)`;
       const cadena = EVOLUTIONS[char];
       s.querySelector('#cs-ability')!.textContent = `${CHARACTER_INFO[char].habilidad}: ${CHARACTER_INFO[char].descripcionHabilidad}`;
       s.querySelector('#cs-evo')!.textContent = cadena.length
@@ -208,27 +216,31 @@ export class App {
     s.querySelector<HTMLSelectElement>('#cs-dif')?.addEventListener('change', (e) => {
       dificultad = (e.target as HTMLSelectElement).value as typeof dificultad;
     });
+    s.querySelector<HTMLSelectElement>('#cs-map')!.addEventListener('change', (e) => {
+      mapa = (e.target as HTMLSelectElement).value as MapId;
+      (s.querySelector('#cs-map-desc') as HTMLElement).textContent = MAP_INFO[mapa].descripcion;
+    });
     s.querySelector('#cs-back')!.addEventListener('click', () => this.showMenu());
     s.querySelector('#cs-play')!.addEventListener('click', () => {
-      this.startLocal(modo, char, dificultad);
+      this.startLocal(modo, char, dificultad, mapa);
     });
   }
 
-  private startLocal(modo: 'solo' | 'entrenamiento', char: CharacterId, dificultad: 'facil' | 'normal' | 'dificil'): void {
+  private startLocal(modo: 'solo' | 'entrenamiento', char: CharacterId, dificultad: 'facil' | 'normal' | 'dificil', mapa: MapId): void {
     const loading = this.showLoading();
     const transport = new WorkerTransport({
-      t: 'config', modo, nombre: settings.alias || 'Jugador', personaje: char, dificultad,
+      t: 'config', modo, nombre: settings.alias || 'Jugador', personaje: char, dificultad, mapa,
       seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
     });
     const timeout = setTimeout(() => {
-      loading.fail(STR.errorCarga, () => this.startLocal(modo, char, dificultad));
+      loading.fail(STR.errorCarga, () => this.startLocal(modo, char, dificultad, mapa));
     }, 8000);
     transport.onMessage = (msg: S2C) => {
       if (msg.t === 'inicio') {
         clearTimeout(timeout);
-        loading.step('Generando «Estación Aurora»…', 0.6);
+        loading.step(`Generando «${MAP_INFO[msg.mapa ?? 'aurora'].nombre}»…`, 0.6);
         requestAnimationFrame(() => {
-          this.launchGame(transport, msg.tuId, modo);
+          this.launchGame(transport, msg.tuId, modo, msg.mapa ?? 'aurora');
           loading.done();
         });
       }
@@ -245,6 +257,7 @@ export class App {
         <h2>${kind === 'crear' ? STR.crearSala : STR.unirse}</h2>
         <label class="set-row"><span>${STR.alias}</span><input id="mf-alias" maxlength="16" value="${settings.alias.replace(/"/g, '')}"></label>
         ${kind === 'unirse' ? `<label class="set-row"><span>${STR.codigoSala}</span><input id="mf-code" maxlength="6" style="text-transform:uppercase"></label>` : ''}
+        ${kind === 'crear' ? `<label class="set-row"><span>Mapa</span><select id="mf-map">${MAP_IDS.map((id) => `<option value="${id}">${MAP_INFO[id].nombre}</option>`).join('')}</select></label>` : ''}
         <p class="error" id="mf-error"></p>
         <button class="menu-btn primary" id="mf-go">${STR.continuar}</button>
         <button class="menu-btn" id="mf-back">${STR.volver}</button>
@@ -259,17 +272,18 @@ export class App {
       settings.alias = alias;
       persist();
       const code = kind === 'unirse' ? (s.querySelector('#mf-code') as HTMLInputElement).value.trim().toUpperCase() : '';
-      this.connectMulti(kind, alias, code, (err) => {
+      const mapa = kind === 'crear' ? (s.querySelector('#mf-map') as HTMLSelectElement).value as MapId : 'aurora';
+      this.connectMulti(kind, alias, code, mapa, (err) => {
         (s.querySelector('#mf-error') as HTMLElement).textContent = err;
       });
     });
   }
 
-  private connectMulti(kind: 'crear' | 'unirse', alias: string, code: string, onError: (e: string) => void): void {
+  private connectMulti(kind: 'crear' | 'unirse', alias: string, code: string, mapa: MapId, onError: (e: string) => void): void {
     const t = new WSTransport(wsUrl());
     let joined = false;
     t.onOpen = () => {
-      t.send(kind === 'crear' ? { t: 'crear', nombre: alias } : { t: 'unirse', codigo: code, nombre: alias });
+      t.send(kind === 'crear' ? { t: 'crear', nombre: alias, mapa } : { t: 'unirse', codigo: code, nombre: alias });
     };
     t.onMessage = (msg) => {
       if (msg.t === 'bienvenida') {
@@ -305,6 +319,7 @@ export class App {
           <span id="lb-wait">${STR.esperandoAnfitrion}</span>
           <button class="menu-btn danger" id="lb-leave">${STR.salir}</button>
         </div>
+        <p class="hint" id="lb-map"></p>
         <p class="hint">Las plazas vacías se rellenan con bots (5 contra 5). Comparte el código para jugar hasta 10 humanos.</p>
       </div>`;
     const charsRow = s.querySelector('#lb-chars')!;
@@ -338,6 +353,7 @@ export class App {
     const render = (): void => {
       if (!state) return;
       (s.querySelector('#lb-code') as HTMLElement).textContent = state.codigo;
+      (s.querySelector('#lb-map') as HTMLElement).textContent = `Mapa: ${MAP_INFO[state.mapa ?? 'aurora'].nombre}`;
       const fill = (team: Team, sel: string): void => {
         const ul = s.querySelector(sel)!;
         ul.innerHTML = '';
@@ -363,7 +379,7 @@ export class App {
         render();
       } else if (msg.t === 'inicio') {
         this.lobbyTransport = null;
-        this.launchGame(t, msg.tuId, 'multi');
+        this.launchGame(t, msg.tuId, 'multi', msg.mapa ?? 'aurora');
       } else if (msg.t === 'error') {
         alert(msg.msg);
       }
@@ -400,7 +416,7 @@ export class App {
 
   // ===== Juego =====
 
-  private launchGame(transport: Transport, myId: number, modo: 'solo' | 'multi' | 'entrenamiento'): void {
+  private launchGame(transport: Transport, myId: number, modo: 'solo' | 'multi' | 'entrenamiento', mapa: MapId): void {
     this.clear();
     audio.stopMusic();
     const container = document.createElement('div');
@@ -411,6 +427,7 @@ export class App {
       transport,
       myId,
       modo,
+      mapa,
       onExit: () => this.showMenu(),
       onResults: (players, score, ganador, myTeam) => this.showResults(players, score, ganador, myTeam),
       reconnect: modo === 'multi' ? this.reconnect : undefined,
@@ -480,8 +497,9 @@ export class App {
         No es un producto oficial y no está afiliado, patrocinado ni aprobado por Nintendo, Game Freak,
         Creatures Inc. ni The Pokémon Company. Pokémon y los nombres de sus criaturas son marcas de sus
         respectivos titulares.</p>
-        <p>Todo el código, los modelos 3D procedurales, el mapa «Estación Aurora» y los sonidos sintetizados
-        se crearon específicamente para este proyecto (ver ASSET_SOURCES.md).</p>
+        <p>Todo el código, los modelos 3D procedurales, los mapas (incluidas las recreaciones de
+        Bosque Verde y Pueblo Paleta, hechas desde cero) y los sonidos sintetizados se crearon
+        específicamente para este proyecto (ver ASSET_SOURCES.md).</p>
         <p>El ajuste opcional «Modelos oficiales» (desactivado por defecto) muestra modelos que son
         <b>propiedad de Nintendo/Creatures Inc./GAME FREAK</b>. Este juego no los aloja ni los
         redistribuye: se cargan desde la copia local del usuario o directamente desde el repositorio

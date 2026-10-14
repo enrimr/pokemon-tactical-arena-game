@@ -12,6 +12,9 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
+// Capturas con los modelos oficiales de Pokémon (descargados en local)
+await page.addInitScript(() => localStorage.setItem('pta-ajustes-v1', JSON.stringify({ modelosOficiales: true })));
+
 await page.goto(BASE + '/?entrada-simulada');
 await page.click('text=Entrenamiento');
 await page.waitForSelector('#cs-play');

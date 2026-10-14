@@ -2,6 +2,7 @@ export * from './constants.js';
 export * from './math.js';
 export * from './rng.js';
 export * from './map.js';
+export * from './mapas.js';
 export * from './collision.js';
 export * from './movement.js';
 export * from './weapons.js';

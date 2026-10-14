@@ -42,6 +42,10 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   las plazas vacías se rellenan con bots. El anfitrión inicia la partida.
 - **Entrenamiento**: muñecos estáticos y móviles, compra libre, cambio de personaje y núcleo
   de práctica (instalar y desactivar tú mismo).
+- **Tres mapas** a elegir (en solo/entrenamiento y al crear sala): «Estación Aurora» (la
+  estación original), «Bosque Verde» (senderos en zigzag entre hileras de árboles, hierba
+  alta y claros, recreación del bosque de los juegos) y «Pueblo Paleta» (las dos casas, el
+  Laboratorio Pokémon, la salida a la Ruta 1 y el mar de la Ruta 21 al sur).
 
 ### Reglas
 
@@ -64,9 +68,13 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   | Pulso básico (gratis) | Impactrueno | Ascuas | Pistola Agua | Hoja Afilada | Confusión |
   | Ráfaga táctica (1800) | Chispa | Lanzallamas | Rayo Burbuja | Bala Semilla | Psicorrayo |
   | Pulso preciso (2400) | Rayo | Llamarada | Hidrobomba | Rayo Solar | Psíquico |
+  | Carga explosiva (2600, daño en área) | Bola Voltio | Estallido | Hidropulso | Bomba Germen | Esfera Aural |
 
-  El orbe elemental ante la boca/manos indica el perfil equipado (visible también en los
-  rivales): orbe sencillo = pulso, tres chispas orbitando = ráfaga, orbe con anillo = preciso.
+  La carga explosiva lanza un proyectil que detona al impactar (65 de daño en el centro,
+  atenuado hasta el borde de un radio de 3,2 m; las paredes bloquean la onda y no afecta a
+  aliados). El orbe elemental ante la boca/manos indica el perfil equipado (visible también
+  en los rivales): orbe sencillo = pulso, tres chispas orbitando = ráfaga, orbe con anillo =
+  preciso, racimo de cargas = explosivo.
   Habilidad Q (400), granada de niebla G (300), kit de desactivación (400, solo defensores).
 - Habilidades: Pikachu *Destello* (ciega), Charmander *Ascua* (zona de daño), Squirtle
   *Cortina* (niebla), Bulbasaur *Esporas* (ralentiza), Mewtwo *Premonición* (revela enemigos
@@ -77,6 +85,13 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   Mewtwo no evoluciona). Evolucionar cura y sube PS máx. (+15/etapa), acelera la recarga
   (−12 %/etapa) y recarga la habilidad; el progreso persiste entre rondas y se pierde al
   cambiar de personaje.
+- Ambientación: murales de «mapa de la región» con las ciudades y rutas de Kanto, letreros
+  de madera de ruta, marcas de pokéball en las zonas A/B y hierba alta (todo dibujado
+  localmente, sin gráficos extraídos de los juegos).
+- Pokéballs: cada ronda aparecen 4 en puntos aleatorios de las zonas disputadas (marcadas en
+  el minimapa). Se abren al pisarlas, con premio aleatorio: energía de evolución (+30), cura
+  (+40 PS), MT (aprende el siguiente ataque, con cargador lleno) o MO (recarga la habilidad
+  o, si ya la tienes, la granada). Si el premio no aporta nada, da +300 créditos.
 
 ### Controles (reasignables en Ajustes)
 
@@ -101,7 +116,7 @@ resultado de pruebas en `TEST_REPORT.md`.
 
 ## Limitaciones conocidas
 
-- Un solo mapa («Estación Aurora») y modo principal + entrenamiento; sin campaña, ranking,
+- Tres mapas y modo principal + entrenamiento; sin campaña, ranking,
   cuentas, chat ni soporte móvil/mando (fuera de alcance por diseño).
 - Modelos y sonidos son estilizaciones procedurales generadas por código (sin Blender en el
   entorno de construcción); ver `ASSET_SOURCES.md`.

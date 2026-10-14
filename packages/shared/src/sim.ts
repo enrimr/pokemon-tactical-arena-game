@@ -6,12 +6,15 @@ import {
   EVO_ASSIST_POINTS, EVO_KILL_POINTS, EVO_OBJECTIVE_POINTS, EVO_RELOAD_MULT, EVO_THRESHOLDS,
   EVO_HP_BONUS, maxEvoStage, maxHpFor, PREMONICION_DURATION_S, PREMONICION_RADIUS,
   ECO_PLANT, ECO_START, ECO_WIN, EMBER_DPS, EMBER_DURATION_S, EMBER_RADIUS, ENEMY_MARKER_S,
+  EXPLOSION_EDGE_FACTOR, EXPLOSION_RADIUS, EXPLOSIVE_PROJ_SPEED,
   FLASH_FUSE_S, FLASH_MAX_S, FLASH_MIN_S, FLASH_RADIUS, GRAVITY, HEAD_MULT, HEAD_OFFSET,
   HEAD_OFFSET_CROUCH, HEAD_SPHERE_RADIUS, HEAR_FIRE_DIST, HEAR_JUMP_DIST, HEAR_RUN_DIST,
-  LAG_COMP_MAX_MS, MAX_HP, PLANT_S, PLAYER_RADIUS, PREP_S, RESOLVE_S, ROUNDS_PER_HALF,
+  LAG_COMP_MAX_MS, MAX_HP, PLANT_S, PLAYER_RADIUS, PokeballPrize, POKEBALL_COUNT,
+  POKEBALL_CREDITS, POKEBALL_EVO_POINTS, POKEBALL_HEAL, POKEBALL_PICKUP_DIST,
+  PREP_S, RESOLVE_S, ROUNDS_PER_HALF,
   ROUNDS_TO_WIN, ROUND_S, SHIELD_ABSORB, SHIELD_COST, SHIELD_MAX, SMOKE_GRENADE_COST,
   SMOKE_G_DURATION_S, SMOKE_G_RADIUS, SPEED_WALK, SPORE_DURATION_S, SPORE_RADIUS,
-  SPORE_SLOW_MULT, Team, TICK_DT, TICK_RATE, WEAPONS,
+  SPORE_SLOW_MULT, Team, TICK_DT, TICK_RATE, WeaponId, WEAPONS,
 } from './constants.js';
 import { clamp, lookDir, v3, vclone, Vec3, vdist, vdistXZ, vdot, vlen, vnorm, vscale, vsub } from './math.js';
 import { buildAuroraMap, inRect, MapDef } from './map.js';
@@ -22,7 +25,7 @@ import { playerHeight, stepMovement, horizontalSpeed } from './movement.js';
 import { applySpread, currentSpreadDeg, fireCooldownTicks, reloadTicks } from './weapons.js';
 import { Rng } from './rng.js';
 import {
-  BTN, CoreState, Interaction, LastSeen, MatchState, PlayerInput, PlayerState,
+  BTN, CoreState, Interaction, LastSeen, MatchState, PickupState, PlayerInput, PlayerState,
   ProjectileState, RoundEndReason, SimEvent, ZoneState,
 } from './types.js';
 import { BuyItem, EnemyMarker, SnapPlayer, Snapshot } from './protocol.js';
@@ -60,6 +63,7 @@ export class GameSim {
   core: CoreState;
   zones: ZoneState[] = [];
   projectiles: ProjectileState[] = [];
+  pickups: PickupState[] = [];
   tick = 0;
   /** sonidos recientes (≤1 s) para la audición de los bots */
   soundLog: { pos: Vec3; radio: number; team: Team; tick: number; actor: number }[] = [];
@@ -182,6 +186,7 @@ export class GameSim {
     this.projectiles = [];
     this.lastSeen = [new Map(), new Map()];
     this.marked = [new Map(), new Map()];
+    this.spawnPokeballs();
 
     let atkIdx = 0;
     let defIdx = 0;
@@ -314,7 +319,8 @@ export class GameSim {
     let precio = 0;
     switch (item) {
       case 'rafaga':
-      case 'preciso': {
+      case 'preciso':
+      case 'explosivo': {
         if (p.weapon === item) return { ok: false, motivo: 'Ya equipado' };
         precio = WEAPONS[item].precio;
         if (p.credits < precio) return { ok: false, motivo: 'Créditos insuficientes' };
@@ -489,6 +495,9 @@ export class GameSim {
     // 4) Núcleo: caída, recogida, posición válida
     this.stepCore(actionsAllowed);
 
+    // 4b) Pokéballs: recogida automática por proximidad
+    if (actionsAllowed) this.stepPickups();
+
     // Reapariciones de entrenamiento
     if (this.training) {
       for (const p of this.players.values()) {
@@ -574,7 +583,8 @@ export class GameSim {
       const wantsFire = (input.buttons & BTN.FIRE) !== 0;
       if (wantsFire && p.fireCooldown === 0 && p.reloadTicksLeft === 0 && p.ammo > 0) {
         if (p.interaction) p.interaction = null; // atacar reinicia el progreso
-        this.fireHitscan(p);
+        if (p.weapon === 'explosivo') this.fireExplosive(p);
+        else this.fireHitscan(p);
       }
       // Habilidad y granada
       if (this.edge(p, input, BTN.ABILITY) && p.abilityCharges > 0) {
@@ -656,6 +666,56 @@ export class GameSim {
     if (best) {
       const dano = Math.round(w.dano * (best.head ? HEAD_MULT : 1));
       this.applyDamage(best.p, dano, shooter.id, best.head);
+    }
+  }
+
+  /** Lanza el proyectil explosivo (perfil 'explosivo'); detona en stepProjectiles. */
+  private fireExplosive(shooter: PlayerState): void {
+    const spread = currentSpreadDeg(shooter);
+    shooter.ammo--;
+    shooter.fireCooldown = fireCooldownTicks(shooter.weapon, TICK_RATE);
+    shooter.lastFireTick = this.tick;
+    this.firedThisTick.add(shooter.id);
+    const eye = this.eyePos(shooter);
+    const dir = applySpread(this.rng, lookDir(shooter.yaw, shooter.pitch), spread);
+    this.projectiles.push({
+      id: this.nextEntityId++,
+      type: 'explosivo', owner: shooter.id, team: shooter.team,
+      pos: v3(eye.x + dir.x * 0.4, eye.y + dir.y * 0.4, eye.z + dir.z * 0.4),
+      vel: vscale(dir, EXPLOSIVE_PROJ_SPEED),
+      bornTick: this.tick,
+      resting: false,
+    });
+    this.pushEvent({ e: 'sonido', tipo: 'disparo', pos: vclone(shooter.pos), radio: HEAR_FIRE_DIST, team: shooter.team, actor: shooter.id });
+  }
+
+  /** ¿El proyectil explosivo golpea a un enemigo en este desplazamiento? */
+  private explosiveHitsPlayer(proj: ProjectileState, dir: Vec3, dist: number): number | null {
+    let best: number | null = null;
+    for (const target of this.players.values()) {
+      if (!target.alive || target.team === proj.team || target.id === proj.owner) continue;
+      const h = playerHeight(target.crouching);
+      const t = rayVerticalCylinder(proj.pos, dir, target.pos.x, target.pos.z, target.pos.y, target.pos.y + h, PLAYER_RADIUS);
+      if (t !== null && t <= dist && (best === null || t < best)) best = t;
+    }
+    return best;
+  }
+
+  /** Detonación en área: atenuación lineal hasta el borde; las paredes bloquean. */
+  private detonateExplosive(proj: ProjectileState, pos: Vec3): void {
+    const w = WEAPONS.explosivo;
+    const centro = v3(pos.x, pos.y + 0.15, pos.z);
+    const char = this.players.get(proj.owner)?.character ?? 'pikachu';
+    this.pushEvent({ e: 'explosionFx', pos: vclone(centro), char, radius: EXPLOSION_RADIUS });
+    this.pushEvent({ e: 'sonido', tipo: 'explosion', pos: vclone(centro), radio: 26, team: proj.team, actor: proj.owner });
+    for (const p of this.players.values()) {
+      if (!p.alive || p.team === proj.team) continue;
+      const torso = v3(p.pos.x, p.pos.y + 0.7, p.pos.z);
+      const d = vdist(centro, torso);
+      if (d > EXPLOSION_RADIUS) continue;
+      if (!lineOfSight(this.map, centro, torso, this.match.phase === 'prep')) continue;
+      const f = 1 - (1 - EXPLOSION_EDGE_FACTOR) * Math.min(1, d / EXPLOSION_RADIUS);
+      this.applyDamage(p, Math.round(w.dano * f), proj.owner, false);
     }
   }
 
@@ -851,6 +911,84 @@ export class GameSim {
     }
   }
 
+  // ===== Pokéballs =====
+
+  /** Coloca POKEBALL_COUNT pokéballs en puntos aleatorios distintos del mapa. */
+  private spawnPokeballs(): void {
+    this.pickups = [];
+    const spots = this.map.pokeballSpots.map(vclone);
+    const n = Math.min(POKEBALL_COUNT, spots.length);
+    for (let i = 0; i < n; i++) {
+      const [spot] = spots.splice(this.rng.int(spots.length), 1);
+      this.pickups.push({ id: this.nextEntityId++, pos: spot });
+    }
+  }
+
+  /** Recogida automática al pasar junto a una pokéball (ambos equipos). */
+  private stepPickups(): void {
+    if (this.pickups.length === 0) return;
+    for (const p of this.playersSorted()) {
+      if (!p.alive || this.dummies.has(p.id)) continue;
+      for (let i = 0; i < this.pickups.length; i++) {
+        const pb = this.pickups[i];
+        if (vdistXZ(p.pos, pb.pos) > POKEBALL_PICKUP_DIST || Math.abs(p.pos.y - pb.pos.y) > 1.2) continue;
+        this.pickups.splice(i, 1);
+        this.openPokeball(p);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Abre la pokéball: premio aleatorio entre energía de evolución, cura,
+   * MT (aprende el siguiente ataque, con cargador lleno) y MO (recarga la
+   * habilidad o, si ya la tiene, la granada). Si el premio no aporta nada,
+   * se convierte en créditos de consolación.
+   */
+  private openPokeball(p: PlayerState): void {
+    let premio = this.rng.pick<PokeballPrize>(['energia', 'cura', 'mt', 'mo']);
+    if (premio === 'energia' && p.evoStage >= maxEvoStage(p.character)) premio = 'creditos';
+    if (premio === 'cura' && p.hp >= maxHpFor(p.evoStage)) premio = 'creditos';
+    if (premio === 'mt' && p.weapon === 'preciso') premio = 'creditos';
+    if (premio === 'mo' && p.abilityCharges >= 1 && p.grenadeCharges >= 1) premio = 'creditos';
+    let cantidad = 0;
+    let detalle: string | undefined;
+    switch (premio) {
+      case 'energia':
+        cantidad = POKEBALL_EVO_POINTS;
+        this.addEvoPoints(p, POKEBALL_EVO_POINTS);
+        break;
+      case 'cura': {
+        const max = maxHpFor(p.evoStage);
+        cantidad = Math.round(Math.min(POKEBALL_HEAL, max - p.hp));
+        p.hp = Math.min(max, p.hp + POKEBALL_HEAL);
+        break;
+      }
+      case 'mt': {
+        const nueva: WeaponId = p.weapon === 'pulso' ? 'rafaga' : 'preciso';
+        p.weapon = nueva;
+        p.ammo = WEAPONS[nueva].cargador;
+        p.reloadTicksLeft = 0;
+        detalle = nueva;
+        break;
+      }
+      case 'mo':
+        if (p.abilityCharges < 1) {
+          p.abilityCharges = 1;
+          detalle = 'habilidad';
+        } else {
+          p.grenadeCharges = 1;
+          detalle = 'granada';
+        }
+        break;
+      case 'creditos':
+        cantidad = Math.max(0, Math.min(ECO_MAX - p.credits, POKEBALL_CREDITS));
+        p.credits += cantidad;
+        break;
+    }
+    this.pushEvent({ e: 'pokeball', player: p.id, premio, cantidad, detalle });
+  }
+
   // ===== Utilidades =====
 
   private throwUtility(p: PlayerState, type: ProjectileState['type']): void {
@@ -879,7 +1017,22 @@ export class GameSim {
         if (dist > 1e-6) {
           const dir = vscale(delta, 1 / dist);
           const hit = raycastMap(this.map, proj.pos, dir, dist, this.match.phase === 'prep');
-          if (hit) {
+          // El explosivo también detona al golpear a un enemigo en pleno vuelo
+          if (proj.type === 'explosivo') {
+            const tPlayer = this.explosiveHitsPlayer(proj, dir, hit ? hit.dist : dist);
+            const tHit = tPlayer !== null ? tPlayer : hit ? hit.dist : null;
+            if (tHit !== null) {
+              this.detonateExplosive(proj, v3(proj.pos.x + dir.x * tHit, proj.pos.y + dir.y * tHit, proj.pos.z + dir.z * tHit));
+              done = true;
+            } else {
+              proj.pos = v3(proj.pos.x + delta.x, proj.pos.y + delta.y, proj.pos.z + delta.z);
+              // Alcance agotado: detona en el aire
+              if ((this.tick - proj.bornTick) * TICK_DT * EXPLOSIVE_PROJ_SPEED > WEAPONS.explosivo.alcance) {
+                this.detonateExplosive(proj, vclone(proj.pos));
+                done = true;
+              }
+            }
+          } else if (hit) {
             const impact = v3(proj.pos.x + dir.x * hit.dist, proj.pos.y + dir.y * hit.dist, proj.pos.z + dir.z * hit.dist);
             if (proj.type === 'destello' || proj.type === 'premonicion') {
               proj.pos = impact;
@@ -929,7 +1082,7 @@ export class GameSim {
       esporas: { radius: SPORE_RADIUS, dur: SPORE_DURATION_S },
       cortina: { radius: CORTINA_RADIUS, dur: CORTINA_DURATION_S },
       niebla: { radius: SMOKE_G_RADIUS, dur: SMOKE_G_DURATION_S },
-    }[proj.type as Exclude<ProjectileState['type'], 'destello' | 'premonicion'>];
+    }[proj.type as Exclude<ProjectileState['type'], 'destello' | 'premonicion' | 'explosivo'>];
     this.zones.push({
       id: this.nextEntityId++,
       type: proj.type as ZoneState['type'],
@@ -1108,6 +1261,9 @@ export class GameSim {
           return ev.victim === viewerId;
         case 'compra':
           return this.players.get(ev.player)?.team === team;
+        case 'pokeball':
+          // El premio es información del equipo del que la abre
+          return this.players.get(ev.player)?.team === team;
         default:
           return true;
       }
@@ -1136,6 +1292,7 @@ export class GameSim {
       core,
       zones: this.zones.map((z) => ({ ...z, pos: vclone(z.pos) })),
       projectiles: this.projectiles.map((pr) => ({ ...pr, pos: vclone(pr.pos), vel: vclone(pr.vel) })),
+      pickups: this.pickups.map((pk) => ({ ...pk, pos: vclone(pk.pos) })),
       events: filteredEvents,
     };
   }

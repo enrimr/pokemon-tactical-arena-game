@@ -165,8 +165,21 @@ export function buildAttackIndicator(color: number, scale = 1): AttackIndicator 
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.13 * scale, 0.012 * scale, 6, 24), orbMat());
   preciso.add(ring);
 
-  group.add(pulso, rafaga, preciso);
-  const variants: Record<WeaponId, THREE.Group> = { pulso, rafaga, preciso };
+  // Explosivo: orbe central con racimo de cargas alrededor
+  const explosivo = new THREE.Group();
+  const core = new THREE.Mesh(SPHERE, orbMat());
+  core.scale.setScalar(0.06 * scale);
+  explosivo.add(core);
+  for (let i = 0; i < 5; i++) {
+    const s = new THREE.Mesh(SPHERE, orbMat());
+    s.scale.setScalar(0.024 * scale);
+    const a = (i / 5) * Math.PI * 2;
+    s.position.set(Math.cos(a) * 0.09 * scale, Math.sin(a) * 0.09 * scale, 0);
+    explosivo.add(s);
+  }
+
+  group.add(pulso, rafaga, preciso, explosivo);
+  const variants: Record<WeaponId, THREE.Group> = { pulso, rafaga, preciso, explosivo };
   return { group, variants, mats };
 }
 

@@ -45,7 +45,7 @@ export class MatchHost {
       }
       case 'comprar': {
         const item = msg.item;
-        const valid: BuyItem[] = ['rafaga', 'preciso', 'escudo', 'habilidad', 'granada', 'kit'];
+        const valid: BuyItem[] = ['rafaga', 'preciso', 'explosivo', 'escudo', 'habilidad', 'granada', 'kit'];
         if (!valid.includes(item)) return;
         const res = this.sim.buy(playerId, item);
         const p = this.sim.players.get(playerId);

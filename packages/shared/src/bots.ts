@@ -138,7 +138,8 @@ export class BotBrain {
     this.buysDone = true;
     const atk = this.isAttacker(sim, p);
     if (p.weapon === 'pulso') {
-      if (p.credits >= WEAPONS.preciso.precio + 650 && this.rng.next() < 0.3) sim.buy(p.id, 'preciso');
+      if (p.credits >= WEAPONS.explosivo.precio + 650 && this.rng.next() < 0.2) sim.buy(p.id, 'explosivo');
+      else if (p.credits >= WEAPONS.preciso.precio + 650 && this.rng.next() < 0.3) sim.buy(p.id, 'preciso');
       else if (p.credits >= WEAPONS.rafaga.precio + 650) sim.buy(p.id, 'rafaga');
     }
     if (p.credits >= 650 && p.shield < 25) sim.buy(p.id, 'escudo');

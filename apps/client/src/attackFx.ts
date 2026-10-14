@@ -237,6 +237,42 @@ function simple(fx: ElementalFx, char: CharacterId): void {
   fx.mote(segment(V_FROM, V_TO, 0.015, fx.mat(CHARACTER_COLORS[char], 0.85)), new THREE.Vector3());
 }
 
+/**
+ * Detonación de un ataque explosivo: destello central, onda esférica del color
+ * elemental, anillo rasante al suelo y chispas radiales. Con «movimiento
+ * reducido» queda un destello breve y contenido.
+ */
+export function createExplosionFx(char: CharacterId, pos: Vec3, radius: number, reduced: boolean): AttackFx {
+  const color = CHARACTER_COLORS[char];
+  const fx = new ElementalFx(reduced ? 0.22 : 0.5);
+  fx.group.position.set(pos.x, pos.y, pos.z);
+  // Destello blanco y onda del color del personaje
+  const flash = new THREE.Mesh(SPHERE, fx.mat(0xfff6dc, 0.95));
+  flash.scale.setScalar(radius * 0.22);
+  fx.mote(flash, new THREE.Vector3(), reduced ? 3 : 5);
+  const wave = new THREE.Mesh(SPHERE, fx.mat(color, 0.5));
+  wave.scale.setScalar(radius * 0.3);
+  fx.mote(wave, new THREE.Vector3(), reduced ? 3.5 : 6);
+  if (!reduced) {
+    // Anillo en el suelo que marca el área afectada
+    const ring = new THREE.Mesh(RING, fx.mat(color, 0.8));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.06;
+    ring.scale.setScalar(radius * 0.25);
+    fx.mote(ring, new THREE.Vector3(), 7);
+    // Chispas radiales
+    const mSpark = fx.mat(color, 0.9);
+    for (let i = 0; i < 10; i++) {
+      const s = new THREE.Mesh(SPHERE, mSpark);
+      s.scale.setScalar(0.07);
+      const a = (i / 10) * Math.PI * 2;
+      const up = 1.5 + Math.random() * 3;
+      fx.mote(s, new THREE.Vector3(Math.cos(a) * (3 + Math.random() * 3), up, Math.sin(a) * (3 + Math.random() * 3)));
+    }
+  }
+  return fx;
+}
+
 export function createAttackFx(char: CharacterId, weapon: WeaponId, from: Vec3, to: Vec3, reduced: boolean): AttackFx | null {
   const { len } = basics(from, to);
   if (len < 0.1) return null;

@@ -96,6 +96,88 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
 - Geometrías compartidas, materiales aditivos por efecto, tope de 48 efectos simultáneos;
   con «movimiento reducido» se mantiene el trazo sencillo y más corto de antes.
 
+## Pokéballs aleatorias con premios (2026-10-14)
+
+- Nueva entidad `PickupState` en la sim compartida: cada ronda aparecen `POKEBALL_COUNT` (4)
+  pokéballs en puntos aleatorios (RNG determinista de la sim) de los 11 candidatos neutrales
+  de `map.pokeballSpots`. Recogida automática al pisarlas (ambos equipos, también bots);
+  reaparecen en cada ronda.
+- Premio aleatorio al abrirlas (`openPokeball`): energía de evolución (+30), cura (+40 PS
+  hasta el máximo), MT (aprende el siguiente ataque: pulso→ráfaga→preciso, cargador lleno) o
+  MO (recarga la habilidad; si ya la tiene, la granada). Premios sin efecto degeneran en
+  +300 créditos (tope de economía respetado). Evento `pokeball` filtrado al equipo del
+  recolector.
+- Cliente: modelo de pokéball (clonado de una plantilla, halo radial, flotación y giro),
+  destello al recogerla, puntos en el minimapa, aviso central con el premio y campanilla
+  (`audio.pokeball`) para el propio jugador; línea en el registro para los aliados.
+- Pruebas: `packages/shared/test/pokeball.test.ts` (14): validez de los puntos (fuera de
+  spawns, transitables, fuera de sólidos), determinismo por semilla, recogida solo en ronda
+  activa, reaparición por ronda y cada tipo de premio con sus degeneraciones; 65 en total.
+
+## Ataque explosivo de área (2026-10-14)
+
+- Cuarto perfil de arma `explosivo` («Carga explosiva», 2600 cr): proyectil rápido
+  (22 m/s, con gravedad) que detona al impactar contra el mapa o un enemigo, o al agotar
+  el alcance (50 m). Daño en área: 65 en el centro con atenuación lineal hasta el 25 % en
+  el borde (radio 3,2 m); la onda respeta la línea de efecto (las paredes bloquean) y no
+  afecta a aliados ni al lanzador. Nombres por personaje: Bola Voltio, Estallido,
+  Hidropulso, Bomba Germen, Esfera Aural.
+- Sim: `fireExplosive`/`detonateExplosive` en sim.ts, tipo de proyectil `explosivo`,
+  evento `explosionFx` (solo presentación). Compra en `buy()`/menú B; los bots la compran
+  a veces (20 % con créditos de sobra). Indicador de perfil: racimo de cargas.
+- Cliente: proyectil como orbe luminoso, detonación con destello, onda elemental del color
+  del personaje, anillo en el suelo y chispas (`createExplosionFx`); sonido grave de
+  lanzamiento + explosión existente. Sin trazo hitscan (ni local ni de red).
+- Pruebas: `packages/shared/test/explosive.test.ts` (6): compra, proyectil sin trazo,
+  atenuación por distancia, aliados ilesos, radio máximo, paredes que bloquean y
+  detonación por impacto directo; 71 en total.
+
+## Capturas y vídeos con modelos oficiales (2026-10-14)
+
+- `tools/browser_check.mjs` y `tools/browser_training.mjs` activan «Modelos oficiales»
+  (localStorage `pta-ajustes-v1`) antes de cargar: todas las capturas usan los modelos
+  reales descargados en local. Demo del explosivo con vídeo:
+  `docs/videos/ataque-explosivo.webm` (19 s) y capturas `docs/capturas/explosivo-*.png`.
+
+## Ambientación del mundo Pokémon (2026-10-14)
+
+- `buildPokemonTheming()` en renderer.ts: texturas canvas generadas localmente (nada
+  extraído de los juegos, ver ASSET_SOURCES.md) inspiradas en ciudades, mapas y rutas:
+  - Murales «MAPA DE LA REGIÓN» estilo Mapa del Pueblo (ciudades de Kanto en castellano
+    unidas por rutas, con la Estación Aurora marcada con ★) en los muros de ambos spawns
+    y de las plazas A/B.
+  - Letreros de madera tipo poste de ruta: «← RUTA A» / «RUTA B →» en las antesalas y
+    «ZONA A/B» junto a los conectores (sin colisión). Sustituyen a los sprites ◀A/B▶.
+  - Marca de pokéball pintada en el suelo de las zonas A y B, bajo el anillo.
+  - Hierba alta (planos cruzados con textura de hojas, fusionados en una malla) en el
+    invernadero, jardineras, bordes de pasillos y antesalas.
+- Capturas: `docs/capturas/tema-*.png`. De paso, corregido un fallo del aviso de pokéball
+  (premio MO evaluaba `WEAPONS[detalle]` con detalle no-arma → error de consola).
+
+## Dos mapas nuevos: Bosque Verde y Pueblo Paleta (2026-10-14)
+
+- Infraestructura multi-mapa: `MapId`, registro `MAP_INFO`/`buildMapById` en
+  `packages/shared/src/mapas.ts`; el mapa viaja en el protocolo (`crear`, `LobbyState`,
+  `inicio`) y en `WorkerConfig`. Selector de mapa en solo/entrenamiento y al crear sala;
+  el lobby muestra el mapa elegido. La ambientación (cielo/niebla, murales, letreros,
+  hierba, arbustos, árboles) y los muñecos de entrenamiento ahora son datos del mapa
+  (`MapDef.theming`, `dummySpots`); el renderer es genérico. Tags nuevos: seto (follaje
+  procedural), tronco, agua (translúcida, decor), casa, tejado, valla. Suelo de césped
+  (Grass004, CC0) en los mapas verdes.
+- **Bosque Verde**: recreación del bosque de los juegos: caseta de entrada al sureste,
+  sendero por el borde sur, pasillos en zigzag entre hileras impenetrables de árboles con
+  copas, gran campo central de hierba alta con tocones, y claros oeste (A) y este (B) ante
+  la caseta de salida norte.
+- **Pueblo Paleta**: recreación del pueblo: casas del jugador y del rival con tejado rojo,
+  salida a la Ruta 1 entre ambas (spawn defensor, con su hierba alta), Laboratorio Pokémon
+  al sureste (zona B), plaza del cartel «PUEBLO PALETA» (zona A), vallas, y el mar de la
+  Ruta 21 al suroeste con muelle (agua cercada, los atacantes desembarcan en la playa).
+- Pruebas (`packages/shared/test/mapas.test.ts`, 17): por mapa, spawns transitables y en
+  zona, caminos a A/B desde ambos spawns, ventaja defensora, sin visión entre spawns,
+  puertas que sellan en preparación, pokéballs/muñecos/letreros válidos; y una partida
+  5v5 completa de bots en cada mapa nuevo (combate, objetivo, nadie sale del mapa);
+  86 en total.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

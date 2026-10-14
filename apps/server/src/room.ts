@@ -1,8 +1,8 @@
 import { WebSocket } from 'ws';
 import { randomBytes, randomInt } from 'node:crypto';
 import {
-  C2S, S2C, CharacterId, CHARACTERS, GameSim, LobbyState, MatchHost, RosterEntry,
-  Team, TEAM_SIZE, encode, isValidAlias, ROOM_CODE_ALPHABET, RECONNECT_GRACE_S,
+  C2S, S2C, CharacterId, CHARACTERS, GameSim, LobbyState, MapId, MatchHost, RosterEntry,
+  Team, TEAM_SIZE, buildMapById, encode, isValidAlias, ROOM_CODE_ALPHABET, RECONNECT_GRACE_S,
 } from '@pta/shared';
 
 const TICK_MS = 1000 / 60;
@@ -37,10 +37,12 @@ export class Room {
   private emptySince: number | null = Date.now();
   private onDestroy: (code: string) => void;
   enPartida = false;
+  readonly mapa: MapId;
 
-  constructor(code: string, onDestroy: (code: string) => void) {
+  constructor(code: string, onDestroy: (code: string) => void, mapa: MapId = 'aurora') {
     this.code = code;
     this.onDestroy = onDestroy;
+    this.mapa = mapa;
   }
 
   static generateCode(existing: (code: string) => boolean): string {
@@ -69,7 +71,7 @@ export class Room {
           this.send(m, { t: 'bienvenida', id: m.id, token: m.token, codigo: this.code });
           if (this.host && this.enPartida) {
             this.host.sim.markReconnected(m.id);
-            this.send(m, { t: 'inicio', seed: this.host.sim.seed, tuId: m.id, tick: this.host.sim.tick });
+            this.send(m, { t: 'inicio', seed: this.host.sim.seed, tuId: m.id, tick: this.host.sim.tick, mapa: this.mapa });
             this.host.attach(m.id, (msg) => this.send(m, msg));
           } else {
             this.broadcastLobby();
@@ -110,7 +112,7 @@ export class Room {
       this.bindSocket(member);
       this.host.sim.replaceBotWithHuman(bot, nombre);
       this.send(member, { t: 'bienvenida', id: bot, token: member.token, codigo: this.code });
-      this.send(member, { t: 'inicio', seed: this.host.sim.seed, tuId: bot, tick: this.host.sim.tick });
+      this.send(member, { t: 'inicio', seed: this.host.sim.seed, tuId: bot, tick: this.host.sim.tick, mapa: this.mapa });
       this.host.attach(bot, (msg) => this.send(member, msg));
     } else {
       this.members.set(id, member);
@@ -272,7 +274,7 @@ export class Room {
     this.members = new Map([...remap.entries()]);
 
     const seed = randomInt(2 ** 31);
-    const sim = new GameSim(seed, roster);
+    const sim = new GameSim(seed, roster, buildMapById(this.mapa));
     this.host = new MatchHost(sim);
     this.host.onRoundStart = () => {
       for (const m of this.members.values()) {
@@ -283,7 +285,7 @@ export class Room {
       }
     };
     for (const m of this.members.values()) {
-      this.send(m, { t: 'inicio', seed, tuId: m.id, tick: 0 });
+      this.send(m, { t: 'inicio', seed, tuId: m.id, tick: 0, mapa: this.mapa });
       this.host.attach(m.id, (msg) => this.send(m, msg));
     }
     this.lastTick = Date.now();
@@ -362,6 +364,7 @@ export class Room {
     const estado: LobbyState = {
       codigo: this.code,
       enPartida: this.enPartida,
+      mapa: this.mapa,
       jugadores: [...this.members.values()].map((m) => ({
         id: m.id,
         nombre: m.nombre,

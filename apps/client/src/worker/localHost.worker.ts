@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import {
-  CHARACTERS, CharacterId, GameSim, MatchHost, RosterEntry, Team, v3,
+  buildMapById, CHARACTERS, CharacterId, GameSim, isMapId, MatchHost, RosterEntry, Team, v3,
 } from '@pta/shared';
 import type { C2S } from '@pta/shared';
 import type { WorkerConfig } from '../net.js';
@@ -44,13 +44,12 @@ function buildRoster(cfg: WorkerConfig): RosterEntry[] {
   return roster;
 }
 
-const DUMMY_SPOTS = [v3(-21, 0, 10), v3(21, 0, 10), v3(0, 1.02, -1.8), v3(-16, 0, 6.5), v3(16, 0, 6.5)];
-
 function placeDummies(sim: GameSim): void {
+  const spots = sim.map.dummySpots;
   let i = 0;
   for (const p of sim.players.values()) {
     if (p.id === 1) continue;
-    const spot = DUMMY_SPOTS[i % DUMMY_SPOTS.length];
+    const spot = spots[i % spots.length];
     p.pos = v3(spot.x, spot.y, spot.z);
     p.yaw = Math.PI;
     i++;
@@ -60,14 +59,15 @@ function placeDummies(sim: GameSim): void {
 self.onmessage = (ev: MessageEvent) => {
   const msg = ev.data as WorkerConfig | C2S;
   if (msg.t === 'config') {
-    const sim = new GameSim(msg.seed, buildRoster(msg), undefined, { training: msg.modo === 'entrenamiento' });
+    const mapa = isMapId(msg.mapa) ? msg.mapa : 'aurora';
+    const sim = new GameSim(msg.seed, buildRoster(msg), buildMapById(mapa), { training: msg.modo === 'entrenamiento' });
     host = new MatchHost(sim);
     if (msg.modo === 'entrenamiento') {
       placeDummies(sim);
       host.onRoundStart = () => placeDummies(sim);
     }
     host.attach(1, (out) => (self as unknown as Worker).postMessage(out));
-    (self as unknown as Worker).postMessage({ t: 'inicio', seed: msg.seed, tuId: 1, tick: sim.tick });
+    (self as unknown as Worker).postMessage({ t: 'inicio', seed: msg.seed, tuId: 1, tick: sim.tick, mapa });
     last = performance.now();
     timer = setInterval(() => {
       if (!host) return;

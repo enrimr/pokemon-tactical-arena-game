@@ -1,14 +1,15 @@
 import { CharacterId, Team, WeaponId } from './constants.js';
+import { MapId } from './map.js';
 import { Vec3 } from './math.js';
 import {
-  CoreState, MatchState, PlayerInput, ProjectileState, SimEvent, ZoneState,
+  CoreState, MatchState, PickupState, PlayerInput, ProjectileState, SimEvent, ZoneState,
 } from './types.js';
 
-export type BuyItem = 'rafaga' | 'preciso' | 'escudo' | 'habilidad' | 'granada' | 'kit';
+export type BuyItem = 'rafaga' | 'preciso' | 'explosivo' | 'escudo' | 'habilidad' | 'granada' | 'kit';
 
 // ===== Cliente → Servidor =====
 export type C2S =
-  | { t: 'crear'; nombre: string }
+  | { t: 'crear'; nombre: string; mapa?: MapId }
   | { t: 'unirse'; codigo: string; nombre: string; token?: string }
   | { t: 'lobbyEquipo'; team: Team }
   | { t: 'lobbyPersonaje'; character: CharacterId }
@@ -37,6 +38,7 @@ export interface LobbyState {
   codigo: string;
   jugadores: LobbyPlayerInfo[];
   enPartida: boolean;
+  mapa: MapId;
 }
 
 export interface SnapPlayer {
@@ -88,13 +90,14 @@ export interface Snapshot {
   core: CoreState;
   zones: ZoneState[];
   projectiles: ProjectileState[];
+  pickups: PickupState[];      // pokéballs sin recoger
   events: SimEvent[];          // eventos desde el último snapshot (filtrados)
 }
 
 export type S2C =
   | { t: 'bienvenida'; id: number; token: string; codigo: string }
   | { t: 'lobby'; estado: LobbyState }
-  | { t: 'inicio'; seed: number; tuId: number; tick: number }
+  | { t: 'inicio'; seed: number; tuId: number; tick: number; mapa: MapId }
   | Snapshot
   | { t: 'compraResultado'; ok: boolean; item: BuyItem; motivo?: string; credits: number }
   | { t: 'pong'; time: number; serverTick: number }

@@ -8,7 +8,22 @@ import { SITE_RADIUS } from './constants.js';
 
 export type SolidTag =
   | 'suelo' | 'muro' | 'muroBajo' | 'caja' | 'cajaBaja' | 'pilar'
-  | 'rampa' | 'pasarela' | 'puerta' | 'jardinera' | 'tuberia' | 'panel';
+  | 'rampa' | 'pasarela' | 'puerta' | 'jardinera' | 'tuberia' | 'panel'
+  // Tags temáticos (Bosque Verde / Pueblo Paleta)
+  | 'seto' | 'tronco' | 'agua' | 'casa' | 'tejado' | 'valla';
+
+export type MapId = 'aurora' | 'bosque' | 'paleta';
+
+/** Ambientación visual del mapa (todo canvas/procedural en el cliente). */
+export interface MapTheming {
+  cielo: number;   // color del cielo
+  niebla: number;  // color de la niebla
+  murales: { pos: Vec3; rotY: number }[];                 // murales «mapa de la región»
+  letreros: { texto: string; pos: Vec3; rotY: number }[]; // letreros de madera
+  hierba: { pos: Vec3; s: number }[];                     // matas de hierba alta
+  arbustos: Vec3[];                                       // arbustos esféricos
+  arboles: { pos: Vec3; s: number }[];                    // árboles decorativos (tronco + copa)
+}
 
 export interface SolidBox {
   min: Vec3;
@@ -38,18 +53,24 @@ export interface BotHints {
 }
 
 export interface MapDef {
+  id: MapId;
   name: string;
   bounds: Rect;
   solids: SolidBox[];        // geometría de colisión (incluye puertas)
-  decor: SolidBox[];         // visual sin colisión (tuberías altas, paneles)
+  decor: SolidBox[];         // visual sin colisión (tuberías altas, paneles, agua)
   sites: SiteDef[];
   attackerSpawn: SpawnDef;   // lado sur (z < 0)
   defenderSpawn: SpawnDef;   // lado norte (z > 0)
   botHints: BotHints;
   killY: number;             // por debajo, reponer (no debería ocurrir)
+  /** posiciones candidatas para las pokéballs de cada ronda (y = altura del suelo) */
+  pokeballSpots: Vec3[];
+  /** posiciones de los muñecos del campo de entrenamiento (5) */
+  dummySpots: Vec3[];
+  theming: MapTheming;
 }
 
-function box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, tag: SolidTag, door?: SolidBox['door']): SolidBox {
+export function box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, tag: SolidTag, door?: SolidBox['door']): SolidBox {
   return { min: v3(Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)), max: v3(Math.max(x0, x1), Math.max(y0, y1), Math.max(z0, z1)), tag, door };
 }
 
@@ -221,6 +242,7 @@ export function buildAuroraMap(): MapDef {
   const defPoints = [-5.2, -4.6, 1.2, 3, 4.8].map((x, i) => ({ pos: v3(x, 0, 19 + (i % 2) * 1.3), yaw: 0 }));
 
   return {
+    id: 'aurora',
     name: 'Estación Aurora',
     bounds: { x0: -32, z0: -24, x1: 32, z1: 24 },
     solids,
@@ -246,6 +268,47 @@ export function buildAuroraMap(): MapDef {
       },
     },
     killY: -5,
+    // Candidatas simétricas en zonas neutrales/disputadas (fuera de los spawns):
+    // antesalas, pasillos laterales, sala central, pasarela, corredor norte,
+    // conectores y bordes de las plazas A/B.
+    pokeballSpots: [
+      v3(-12, 0, -14), v3(12, 0, -14),     // antesalas
+      v3(-25.2, 0, -8), v3(25.2, 0, -8),   // pasillos laterales
+      v3(0, 0, -8),                        // sala central sur
+      v3(-2.3, 1, 2.3),                    // sobre la pasarela
+      v3(3, 0, 8.5),                       // corredor central norte
+      v3(-9.2, 0, 7.2), v3(9.2, 0, 7.2),   // conectores
+      v3(-16, 0, 10), v3(16, 0, 10),       // bordes de plaza A y B
+    ],
+    dummySpots: [v3(-21, 0, 10), v3(21, 0, 10), v3(0, 1.02, -1.8), v3(-16, 0, 6.5), v3(16, 0, 6.5)],
+    theming: {
+      cielo: 0xaed8f0,
+      niebla: 0xcfe6f2,
+      murales: [
+        { pos: v3(0, 1.75, -23.46), rotY: 0 },
+        { pos: v3(0, 1.75, 23.46), rotY: Math.PI },
+        { pos: v3(-29.96, 1.45, 10), rotY: Math.PI / 2 },
+        { pos: v3(29.96, 1.45, 10), rotY: -Math.PI / 2 },
+      ],
+      letreros: [
+        { texto: '← RUTA A', pos: v3(-14, 0, -14), rotY: Math.PI },
+        { texto: 'RUTA B →', pos: v3(14, 0, -14), rotY: Math.PI },
+        { texto: 'ZONA A', pos: v3(-13.2, 0, 7), rotY: Math.PI / 2 },
+        { texto: 'ZONA B', pos: v3(13.2, 0, 7), rotY: -Math.PI / 2 },
+      ],
+      hierba: [
+        [19, 0, 8, 1.1], [23, 0, 12.2, 1], [26.3, 0, 8.4, 1.2], [18.4, 0, 12.6, 0.9], [21.8, 0, 5.2, 1],
+        [21, 1.2, 13.8, 0.8], [17, 0.6, 6.5, 0.7], [25.5, 1.2, 6.5, 0.8], [27.5, 1.2, 14.5, 0.7], [24.5, 0.6, 10, 0.7],
+        [-19, 0, 5.2, 0.9], [-23.2, 0, 7.8, 0.8], [-26.8, 0, 12.4, 1],
+        [-26.6, 0, -3, 0.9], [-24, 0, -9.6, 0.8], [26.6, 0, -3, 0.9], [24, 0, -9.6, 0.8],
+        [-14.9, 0, -14.6, 0.8], [14.9, 0, -14.6, 0.8],
+      ].map(([x, y, z, s]) => ({ pos: v3(x, y, z), s })),
+      arbustos: [
+        v3(14.5, 0, 16.5), v3(28.5, 0, 4), v3(19, 0, 3.2), v3(28.6, 0, 16.6),
+        v3(-14.5, 0, 16.5), v3(-28.5, 0, 4.2),
+      ],
+      arboles: [],
+    },
   };
 }
 

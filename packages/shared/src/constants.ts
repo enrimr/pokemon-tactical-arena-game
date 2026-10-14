@@ -47,13 +47,22 @@ export interface WeaponProfile {
   retrocesoVisual: number; // grados
 }
 
-export type WeaponId = 'pulso' | 'rafaga' | 'preciso';
+export type WeaponId = 'pulso' | 'rafaga' | 'preciso' | 'explosivo';
 
 export const WEAPONS: Record<WeaponId, WeaponProfile> = {
   pulso:   { id: 'pulso',   nombre: 'Pulso básico',   precio: 0,    dano: 20, disparosPorSegundo: 4,   cargador: 16, recargaS: 1.5, alcance: 45, dispersionBase: 0.35, retrocesoVisual: 0.4 },
   rafaga:  { id: 'rafaga',  nombre: 'Ráfaga táctica', precio: 1800, dano: 23, disparosPorSegundo: 6,   cargador: 24, recargaS: 1.8, alcance: 55, dispersionBase: 0.45, retrocesoVisual: 0.6 },
   preciso: { id: 'preciso', nombre: 'Pulso preciso',  precio: 2400, dano: 55, disparosPorSegundo: 1.2, cargador: 5,  recargaS: 2.2, alcance: 70, dispersionBase: 0.08, retrocesoVisual: 1.5 },
+  // Proyectil con detonación en área (dano = en el centro, con atenuación lineal)
+  explosivo: { id: 'explosivo', nombre: 'Carga explosiva', precio: 2600, dano: 65, disparosPorSegundo: 0.9, cargador: 4, recargaS: 2.4, alcance: 50, dispersionBase: 0.4, retrocesoVisual: 1.8 },
 };
+
+// Ataque explosivo: proyectil rápido que detona al impactar (mapa o enemigo) o al
+// agotar el alcance. Daño en área con atenuación lineal hasta el borde; las paredes
+// bloquean la onda (línea de efecto). No afecta a aliados ni al lanzador.
+export const EXPLOSION_RADIUS = 3.2;
+export const EXPLOSIVE_PROJ_SPEED = 22;
+export const EXPLOSION_EDGE_FACTOR = 0.25; // fracción del daño en el borde del radio
 
 export const SPREAD_MOVE_ADD = 1.5;   // grados si se mueve
 export const SPREAD_AIR_ADD = 3.0;    // grados en el aire
@@ -147,11 +156,11 @@ export const CHARACTERS: CharacterId[] = ['pikachu', 'charmander', 'squirtle', '
  * elemental: Impactrueno y Ascuas son el pulso básico, Rayo o Hidrobomba el preciso, etc.
  */
 export const ATTACK_NAMES: Record<CharacterId, Record<WeaponId, string>> = {
-  pikachu: { pulso: 'Impactrueno', rafaga: 'Chispa', preciso: 'Rayo' },
-  charmander: { pulso: 'Ascuas', rafaga: 'Lanzallamas', preciso: 'Llamarada' },
-  squirtle: { pulso: 'Pistola Agua', rafaga: 'Rayo Burbuja', preciso: 'Hidrobomba' },
-  bulbasaur: { pulso: 'Hoja Afilada', rafaga: 'Bala Semilla', preciso: 'Rayo Solar' },
-  mewtwo: { pulso: 'Confusión', rafaga: 'Psicorrayo', preciso: 'Psíquico' },
+  pikachu: { pulso: 'Impactrueno', rafaga: 'Chispa', preciso: 'Rayo', explosivo: 'Bola Voltio' },
+  charmander: { pulso: 'Ascuas', rafaga: 'Lanzallamas', preciso: 'Llamarada', explosivo: 'Estallido' },
+  squirtle: { pulso: 'Pistola Agua', rafaga: 'Rayo Burbuja', preciso: 'Hidrobomba', explosivo: 'Hidropulso' },
+  bulbasaur: { pulso: 'Hoja Afilada', rafaga: 'Bala Semilla', preciso: 'Rayo Solar', explosivo: 'Bomba Germen' },
+  mewtwo: { pulso: 'Confusión', rafaga: 'Psicorrayo', preciso: 'Psíquico', explosivo: 'Esfera Aural' },
 };
 
 export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: string; descripcionHabilidad: string }> = {
@@ -198,3 +207,15 @@ export function maxHpFor(stage: number): number {
 // Premonición (habilidad de Mewtwo)
 export const PREMONICION_RADIUS = 10;
 export const PREMONICION_DURATION_S = 3;
+
+// ===== Pokéballs (objetos aleatorios en el mapa) =====
+// En cada ronda aparecen POKEBALL_COUNT pokéballs en puntos aleatorios del mapa
+// (map.pokeballSpots). Al pisarlas se abren con un premio aleatorio; si el premio
+// no aporta nada (todo al máximo), se convierte en créditos de consolación.
+export const POKEBALL_COUNT = 4;
+export const POKEBALL_PICKUP_DIST = 1.0;  // recogida automática (m, en planta)
+export const POKEBALL_HEAL = 40;          // cura: PS restaurados (hasta el máximo)
+export const POKEBALL_EVO_POINTS = 30;    // energía: puntos de evolución
+export const POKEBALL_CREDITS = 300;      // consolación: créditos
+
+export type PokeballPrize = 'energia' | 'cura' | 'mt' | 'mo' | 'creditos';

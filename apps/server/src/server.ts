@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { encode, isValidAlias, isValidRoomCode } from '@pta/shared';
+import { encode, isMapId, isValidAlias, isValidRoomCode } from '@pta/shared';
 import { Room } from './room.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -85,7 +85,7 @@ const MIME: Record<string, string> = {
       ws.send(encode({ t: 'error', codigo: 'formato', msg: 'JSON inválido' }));
       return;
     }
-    const m = msg as { t?: string; nombre?: unknown; codigo?: unknown; token?: unknown };
+    const m = msg as { t?: string; nombre?: unknown; codigo?: unknown; token?: unknown; mapa?: unknown };
     if (m.t === 'crear') {
       if (draining) {
         ws.send(encode({ t: 'error', codigo: 'salaLlena', msg: 'El servidor se está actualizando; prueba de nuevo en un par de minutos.' }));
@@ -96,7 +96,7 @@ const MIME: Record<string, string> = {
         return;
       }
       const code = Room.generateCode((c) => rooms.has(c));
-      const room = new Room(code, (c) => rooms.delete(c));
+      const room = new Room(code, (c) => rooms.delete(c), isMapId(m.mapa) ? m.mapa : 'aurora');
       rooms.set(code, room);
       claimed = true;
       clearTimeout(timeout);

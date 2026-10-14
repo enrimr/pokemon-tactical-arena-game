@@ -1,5 +1,5 @@
 import {
-  BTN, buildAuroraMap, CAMERA_HEIGHT, CAMERA_HEIGHT_CROUCH, CharacterId, defaultInput,
+  BTN, buildMapById, CAMERA_HEIGHT, CAMERA_HEIGHT_CROUCH, CharacterId, defaultInput, MapId,
   fireCooldownTicks, lookDir, MapDef, PlayerInput, PlayerState, raycastMap, SnapPlayer,
   Snapshot, STR, Team, TICK_RATE, vdistXZ, WEAPONS, currentSpreadDeg, angleDiff, characterDisplayName,
   stepMovement, v3, Vec3,
@@ -23,6 +23,7 @@ export interface GameOptions {
   transport: Transport;
   myId: number;
   modo: 'solo' | 'multi' | 'entrenamiento';
+  mapa: MapId;
   onExit: () => void;
   onResults: (players: SnapPlayer[], score: [number, number], ganador: Team | 'empate', myTeam: Team) => void;
   /** multi: intenta obtener un transporte nuevo con el token (reconexión) */
@@ -80,7 +81,7 @@ export class GameClient {
     this.opts = opts;
     this.transport = opts.transport;
     this.myId = opts.myId;
-    this.map = buildAuroraMap();
+    this.map = buildMapById(opts.mapa);
     this.renderer = new GameRenderer(opts.container, this.map);
     this.hud = new Hud(opts.container, this.map, {
       buy: (item) => this.transport.send({ t: 'comprar', item: item as never }),
@@ -441,6 +442,29 @@ export class GameClient {
         }
         break;
       }
+      case 'explosionFx':
+        this.renderer.spawnExplosion(e.pos, e.char, e.radius);
+        break;
+      case 'pokeball': {
+        // Nota: evaluación perezosa; con premio 'mo' el detalle no es un arma
+        const texto = ((): string => {
+          switch (e.premio) {
+            case 'energia': return `+${e.cantidad} de energía de evolución`;
+            case 'cura': return `+${e.cantidad} PS`;
+            case 'mt': return `MT aprendida: ${WEAPONS[(e.detalle ?? 'rafaga') as keyof typeof WEAPONS].nombre}`;
+            case 'mo': return e.detalle === 'granada' ? 'MO: granada de niebla repuesta' : 'MO: habilidad recargada';
+            case 'creditos': return `+${e.cantidad} créditos`;
+          }
+        })();
+        if (e.player === this.myId) {
+          this.hud.centerMessage('¡Pokéball abierta!', texto, 2400);
+          audio.pokeball();
+        } else {
+          const quien = this.registry.get(e.player);
+          if (quien) this.hud.addKill('◓', `${quien.nombre} abrió una Pokéball`, (quien.team ?? 0) as Team, false, null);
+        }
+        break;
+      }
       case 'nucleoSuelto':
         this.hud.centerMessage(STR.nucleoSoltado, '', 1500);
         break;
@@ -517,17 +541,19 @@ export class GameClient {
       this.localCooldown = fireCooldownTicks(this.self.weapon, TICK_RATE);
       this.renderer.fireRecoil(w.retrocesoVisual * (settings.movimientoReducido ? 0.3 : 1));
       audio.disparo(this.self.weapon, selfSnap?.character ?? 'pikachu');
-      // Trazo local contra la geometría
-      const eye = this.eyePos();
-      const dir = lookDir(this.self.yaw, this.self.pitch);
-      const hit = raycastMap(this.map, eye, dir, w.alcance, doors);
-      const d = hit ? hit.dist : w.alcance;
-      this.renderer.spawnTracer(
-        { x: eye.x + dir.x * 0.4, y: eye.y - 0.15, z: eye.z + dir.z * 0.4 },
-        { x: eye.x + dir.x * d, y: eye.y + dir.y * d, z: eye.z + dir.z * d },
-        selfSnap?.character ?? 'pikachu',
-        this.self.weapon,
-      );
+      if (this.self.weapon !== 'explosivo') {
+        // Trazo local contra la geometría (el explosivo es un proyectil del servidor)
+        const eye = this.eyePos();
+        const dir = lookDir(this.self.yaw, this.self.pitch);
+        const hit = raycastMap(this.map, eye, dir, w.alcance, doors);
+        const d = hit ? hit.dist : w.alcance;
+        this.renderer.spawnTracer(
+          { x: eye.x + dir.x * 0.4, y: eye.y - 0.15, z: eye.z + dir.z * 0.4 },
+          { x: eye.x + dir.x * d, y: eye.y + dir.y * d, z: eye.z + dir.z * d },
+          selfSnap?.character ?? 'pikachu',
+          this.self.weapon,
+        );
+      }
     }
     if ((inp.buttons & BTN.RELOAD) !== 0 && this.localReload <= 0 && this.localAmmo < WEAPONS[this.self.weapon].cargador) {
       this.localReload = Math.round(WEAPONS[this.self.weapon].recargaS * TICK_RATE);
@@ -639,6 +665,7 @@ export class GameClient {
     this.renderer.updatePlayers(views.filter((vv) => vv.id !== hideId || !vv.alive), hideId, this.time, myTeam);
     this.renderer.updateZones(snap.zones, snap.tick, this.time);
     this.renderer.updateProjectiles(snap.projectiles);
+    this.renderer.updatePickups(snap.pickups ?? [], this.time);
 
     // Núcleo
     const carrier = snap.core.carrier;
@@ -691,7 +718,7 @@ export class GameClient {
     const corePos = snap.core.planted || snap.core.carrier === null
       ? (snap.core.pos.y > -50 ? { x: snap.core.pos.x, z: snap.core.pos.z } : null)
       : carrierPos ? { x: carrierPos.x, z: carrierPos.z } : null;
-    this.hud.drawMinimap(snap.players, snap.markers, this.myId, (selfSnap?.team ?? 0) as Team, snap.zones, corePos);
+    this.hud.drawMinimap(snap.players, snap.markers, this.myId, (selfSnap?.team ?? 0) as Team, snap.zones, corePos, snap.pickups ?? []);
     this.hud.showScoreboard(this.input.held(settings.binds.marcador), snap.players, snap.match);
 
     // Dispersión en retícula
