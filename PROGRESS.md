@@ -196,6 +196,29 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   halo radial con latido suave, clonado de una plantilla por equipo. Identifica
   el bando con modelos propios y oficiales desde cualquier ángulo.
 
+## Aura DBZ, espectador orbital, PWA y pantallas móviles (2026-10-15)
+
+- Aura de equipo ampliada a llamarada vertical estilo Dragon Ball: cilindro abierto
+  con lenguas de energía (canvas, aditivo) que gira y respira, sobre el anillo y el
+  halo existentes; materiales compartidos por equipo con latido.
+- Espectador: cámara orbital en 3ª persona alrededor del aliado seguido (giro con
+  ratón/arrastre, sin atravesar paredes) con alternancia a 1ª persona (clic derecho
+  o salto); clic izquierdo sigue cambiando de aliado.
+- PWA instalable: manifest.webmanifest, iconos pokéball generados localmente
+  (`tools/generar-iconos.mjs`), service worker red-primero con reserva en caché
+  (`public/sw.js`, no intercepta el WebSocket) y metadatos iOS. Tipos MIME nuevos
+  en el servidor (.webmanifest, .jpg, .glb, .wasm…).
+- Pantallas sin cortes en móvil: `.screen` con `overflow-y: auto` y centrado
+  `safe center` (con respaldo), paneles con desplazamiento y safe-areas de la
+  muesca. Verificado programáticamente (sin desbordes, inicio visible, scroll
+  llega al final) en 667×375.
+- Animaciones de ataque de los modelos oficiales mejoradas tras inventariar los
+  clips de los .glb (`tools/_glb_clips.mjs`): Mewtwo usa `battlewait` como postura
+  de combate y dispara con `rangeattack01`, rotando entre los ataques disponibles
+  (attack01/attack02; fight_b/fight_d en Bulbasaur); Pikachu ya disparaba
+  «Impactrueno». Charmander/Squirtle y evoluciones sin clips siguen con los
+  gestos procedurales.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

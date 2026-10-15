@@ -27,6 +27,13 @@ const MIME: Record<string, string> = {
   '.ico': 'image/x-icon',
   '.map': 'application/json',
   '.woff2': 'font/woff2',
+  '.webmanifest': 'application/manifest+json',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.webm': 'video/webm',
+  '.glb': 'model/gltf-binary',
+  '.wasm': 'application/wasm',
 };
 
   const rooms = new Map<string, Room>();

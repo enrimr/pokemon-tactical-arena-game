@@ -87,5 +87,5 @@ export const STR = {
   practicaNucleo: 'Núcleo de práctica',
   munecos: 'Muñecos de práctica',
   spectating: 'Observando a',
-  cambiaConFuego: 'Clic para cambiar de aliado',
+  cambiaConFuego: 'Clic: cambiar de aliado · clic dcho. o salto: 1ª/3ª persona · ratón/arrastre: girar',
 } as const;

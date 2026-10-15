@@ -79,13 +79,15 @@ export class GameRenderer {
   private container: HTMLElement;
   private map: MapDef;
   private doors: THREE.Object3D[] = [];
-  private models = new Map<number, { model: CharacterModel; marker: THREE.Sprite; character: CharacterId; evoStage: number }>();
+  private models = new Map<number, { model: CharacterModel; marker: THREE.Sprite; aura: THREE.Group; llama: THREE.Object3D | null; character: CharacterId; evoStage: number }>();
   private zoneFx = new Map<number, THREE.Group>();
   private projFx = new Map<number, THREE.Mesh>();
   private pickupFx = new Map<number, THREE.Group>();
   private pokeballTemplate!: THREE.Group;
   private auraTemplates = new Map<number, THREE.Group>();
   private auraRingMats = new Map<number, THREE.MeshBasicMaterial>();
+  private auraFlameMats = new Map<number, THREE.MeshBasicMaterial>();
+  private auraFlameTex: THREE.CanvasTexture | null = null;
   private attackFx: AttackFx[] = [];
   private puffs: PuffFx[] = [];
   private coreMesh: THREE.Group;
@@ -802,10 +804,45 @@ export class GameRenderer {
       }));
       glow.scale.setScalar(1.5);
       glow.position.y = 0.25;
-      template.add(ring, glow);
+      // Llamarada vertical estilo Dragon Ball: lenguas de energía alrededor del cuerpo
+      if (!this.auraFlameTex) {
+        const fc = document.createElement('canvas');
+        fc.width = 128; fc.height = 128;
+        const fctx = fc.getContext('2d')!;
+        let s = 31;
+        const rnd = (): number => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+        for (let i = 0; i < 16; i++) {
+          const x = rnd() * 128;
+          const w = 5 + rnd() * 8;
+          const h = 48 + rnd() * 72;
+          const g2 = fctx.createLinearGradient(0, 128, 0, 128 - h);
+          g2.addColorStop(0, 'rgba(255,255,255,0.9)');
+          g2.addColorStop(0.45, 'rgba(255,255,255,0.4)');
+          g2.addColorStop(1, 'rgba(255,255,255,0)');
+          fctx.fillStyle = g2;
+          fctx.beginPath();
+          fctx.moveTo(x - w / 2, 128);
+          fctx.quadraticCurveTo(x - w / 4, 128 - h * 0.55, x, 128 - h);
+          fctx.quadraticCurveTo(x + w / 4, 128 - h * 0.55, x + w / 2, 128);
+          fctx.closePath();
+          fctx.fill();
+        }
+        this.auraFlameTex = new THREE.CanvasTexture(fc);
+        this.auraFlameTex.wrapS = THREE.RepeatWrapping;
+        this.disposables.push(this.auraFlameTex);
+      }
+      const flameMat = new THREE.MeshBasicMaterial({
+        map: this.auraFlameTex, color, transparent: true, opacity: 0.7,
+        side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const flame = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 1.7, 14, 1, true), flameMat);
+      flame.name = 'llama';
+      flame.position.y = 0.82;
+      template.add(ring, glow, flame);
       this.auraTemplates.set(team, template);
       this.auraRingMats.set(team, ringMat);
-      this.disposables.push(ring.geometry, ringMat, tex, glow.material);
+      this.auraFlameMats.set(team, flameMat);
+      this.disposables.push(ring.geometry, ringMat, tex, glow.material, flame.geometry, flameMat);
     }
     return template.clone();
   }
@@ -817,8 +854,9 @@ export class GameRenderer {
   }
 
   updatePlayers(views: PlayerView[], selfId: number, time: number, myTeam = -1): void {
-    // Latido suave de las auras de equipo (material compartido por equipo)
+    // Latido suave de las auras de equipo (materiales compartidos por equipo)
     for (const [, m] of this.auraRingMats) m.opacity = 0.72 + Math.sin(time * 2.6) * 0.14;
+    for (const [, m] of this.auraFlameMats) m.opacity = 0.55 + Math.sin(time * 5.2) * 0.16;
     const seen = new Set<number>();
     for (const v of views) {
       seen.add(v.id);
@@ -836,9 +874,10 @@ export class GameRenderer {
         marker.scale.set(1.6, 1.6, 1);
         marker.position.y = 1.95;
         model.root.add(marker);
-        model.root.add(this.buildTeamAura(v.team));
+        const aura = this.buildTeamAura(v.team);
+        model.root.add(aura);
         this.scene.add(model.root);
-        entry = { model, marker, character: v.character, evoStage: v.evoStage };
+        entry = { model, marker, aura, llama: aura.getObjectByName('llama') ?? null, character: v.character, evoStage: v.evoStage };
         this.models.set(v.id, entry);
       }
       const { model, marker } = entry;
@@ -857,6 +896,12 @@ export class GameRenderer {
         weapon: v.weapon,
       };
       model.update(pose, time + v.id * 1.7);
+      // Aura: giro constante y lenguas que respiran (desfasadas por jugador)
+      entry.aura.rotation.y = time * 1.3 + v.id;
+      if (entry.llama) {
+        entry.llama.scale.y = 1 + Math.sin(time * 6 + v.id * 2.1) * 0.09;
+        entry.llama.scale.x = entry.llama.scale.z = 1 + Math.sin(time * 4.4 + v.id) * 0.04;
+      }
     }
     for (const [id, entry] of this.models) {
       if (!seen.has(id)) {

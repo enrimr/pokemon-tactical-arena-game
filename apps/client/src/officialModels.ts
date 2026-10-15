@@ -227,13 +227,19 @@ export function createOfficialModel(id: CharacterId, stage = 0): CharacterModel 
   let idleAction: THREE.AnimationAction | null = null;
   let moveAction: THREE.AnimationAction | null = null;
   let attackAction: THREE.AnimationAction | null = null;
+  let attackActions: THREE.AnimationAction[] = []; // rotación entre varios ataques
+  let attackIdx = 0;
   let attackEsPose = false; // el clip de ataque hace también de pose de reposo (Pikachu)
   const clips = gltf.animations;
   if (clips.length) {
     const find = (re: RegExp): THREE.AnimationClip | undefined => clips.find((c) => re.test(c.name));
-    const idleClip = find(/idle|wait|reposo/i);
+    // Postura de combate si existe (Mewtwo trae battlewait además de defaultwait)
+    const idleClip = find(/battlewait/i) ?? find(/idle|wait|reposo/i);
     const moveClip = find(/run/i) ?? find(/walk|andar/i);
-    const attackClip = find(/fight|attack|atk|impactrueno|shot/i);
+    // Ataques: preferir el ataque a distancia (disparamos) y rotar entre los que haya
+    const attackPool = clips.filter((c) => /rangeattack01$|attack0\d$|fight_[a-z]$|impactrueno|atk\b|shot/i.test(c.name));
+    attackPool.sort((a, b) => Number(/rangeattack/i.test(b.name)) - Number(/rangeattack/i.test(a.name)));
+    const attackClip = attackPool[0] ?? find(/fight|attack|atk|impactrueno|shot/i);
     mixer = new THREE.AnimationMixer(inner);
     if (idleClip) {
       idleAction = mixer.clipAction(idleClip);
@@ -243,10 +249,12 @@ export function createOfficialModel(id: CharacterId, stage = 0): CharacterModel 
         moveAction.setEffectiveWeight(0);
         moveAction.play();
       }
-      if (attackClip) {
-        attackAction = mixer.clipAction(attackClip);
-        attackAction.setLoop(THREE.LoopOnce, 1);
-      }
+      attackActions = attackPool.slice(0, 4).map((c) => {
+        const a = mixer!.clipAction(c);
+        a.setLoop(THREE.LoopOnce, 1);
+        a.timeScale = 1.35; // más chispa: los clips de los juegos son pausados
+        return a;
+      });
       mixer.update(0);
     } else if (attackClip) {
       // Sin idle: el primer fotograma del ataque es la pose de reposo; el clip
@@ -326,16 +334,18 @@ export function createOfficialModel(id: CharacterId, stage = 0): CharacterModel 
     prevFiring = pose.firing;
 
     if (mixer) {
-      if (attackAction && disparoNuevo) {
-        if (attackEsPose) {
+      if (disparoNuevo) {
+        if (attackEsPose && attackAction) {
           attackAction.reset();
           attackAction.paused = false;
-        } else {
-          attackAction.reset().fadeIn(0.06).play();
+        } else if (attackActions.length > 0) {
+          // Rotar entre los ataques del archivo (p. ej. rangeattack01/attack01/attack02)
+          attackActions[attackIdx % attackActions.length].reset().fadeIn(0.06).play();
+          attackIdx++;
         }
       }
       if (moveAction && idleAction) {
-        const atacando = attackAction?.isRunning() === true && !attackAction.paused && !attackEsPose;
+        const atacando = attackActions.some((a) => a.isRunning() && !a.paused);
         moveAction.setEffectiveWeight(atacando ? walk * 0.3 : walk);
         idleAction.setEffectiveWeight(atacando ? 0.15 : 1 - walk);
       }

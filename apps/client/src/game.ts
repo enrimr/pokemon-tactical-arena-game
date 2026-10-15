@@ -67,6 +67,8 @@ export class GameClient {
 
   private spectateId: number | null = null;
   private prevMouseFire = false;
+  private specFirstPerson = false;
+  private prevSpecToggle = false;
   private lastFireAt = new Map<number, number>();
   private lastThrowAt = new Map<number, number>();
   private lastInteractAt = new Map<number, number>();
@@ -503,10 +505,13 @@ export class GameClient {
     const sample = this.input.sample();
 
     if (!alive) {
-      // Espectador: clic cambia de aliado
+      // Espectador: clic cambia de aliado; clic derecho o salto alterna 1ª/3ª persona
       const fire = (sample.buttons & BTN.FIRE) !== 0;
       if (fire && !this.prevMouseFire) this.pickSpectate(1);
       this.prevMouseFire = fire;
+      const toggleView = (sample.buttons & (BTN.AIM | BTN.JUMP)) !== 0;
+      if (toggleView && !this.prevSpecToggle) this.specFirstPerson = !this.specFirstPerson;
+      this.prevSpecToggle = toggleView;
       return;
     }
 
@@ -659,7 +664,8 @@ export class GameClient {
     const alive = selfSnap?.alive ?? true;
     const { views, specView } = this.interpolated();
 
-    const hideId = alive || this.spectateId === null ? this.myId : this.spectateId;
+    // Espectador en 3ª persona: no se oculta a nadie; en 1ª, al aliado seguido
+    const hideId = alive ? this.myId : this.specFirstPerson && this.spectateId !== null ? this.spectateId : -1;
     const myTeam = this.registry.get(this.myId)?.team ?? 0;
     this.renderer.setFirstPersonVisible(alive);
     this.renderer.updatePlayers(views.filter((vv) => vv.id !== hideId || !vv.alive), hideId, this.time, myTeam);
@@ -696,10 +702,23 @@ export class GameClient {
       camPos = this.eyePos();
       yaw = this.self.yaw;
       pitch = this.self.pitch;
-    } else if (specView) {
+    } else if (specView && this.specFirstPerson) {
+      // 1ª persona: la vista exacta del aliado seguido
       camPos = specView.pos;
       yaw = specView.yaw;
       pitch = specView.pitch;
+    } else if (specView) {
+      // 3ª persona: cámara orbital alrededor del aliado, girada con ratón/arrastre
+      yaw = this.input.yaw;
+      pitch = Math.max(-1.1, Math.min(0.6, this.input.pitch));
+      const dir = lookDir(yaw, pitch);
+      const DIST = 3.2;
+      const objetivo = v3(specView.pos.x, specView.pos.y + 0.35, specView.pos.z);
+      // No atravesar paredes: retroceder solo hasta el primer obstáculo
+      const atras = v3(-dir.x, -dir.y, -dir.z);
+      const hit = raycastMap(this.map, objetivo, atras, DIST, snap.match.phase === 'prep');
+      const d = Math.max(0.4, (hit ? hit.dist : DIST) - 0.25);
+      camPos = v3(objetivo.x + atras.x * d, objetivo.y + atras.y * d, objetivo.z + atras.z * d);
     } else {
       camPos = v3(this.self.pos.x, this.self.pos.y + 2.2, this.self.pos.z);
       yaw = this.self.yaw;

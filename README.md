@@ -103,7 +103,13 @@ interna 75 %, movimiento reducido, destello accesible y giroscopio (persisten en
 En móvil/tableta: joystick virtual (medio recorrido = caminar), arrastre para mirar, botones
 en arco junto al disparo y, opcionalmente, **apuntado con giroscopio** (píldora 🧭, se suma al
 arrastre, estilo Splatoon; en iOS pide permiso). Cada Pokémon lleva un **aura con el color de
-su equipo** (anillo azul/naranja en los pies) para identificar los bandos de un vistazo.
+su equipo**: anillo en los pies y llamarada de energía ascendente (estilo Dragon Ball) para
+identificar los bandos de un vistazo.
+El juego es una **PWA instalable**: desde el navegador del móvil, «Añadir a pantalla de
+inicio» lo instala a pantalla completa (manifest + service worker con red primero).
+Al caer debilitado, la cámara de espectador **orbita en 3ª persona** alrededor del aliado
+seguido (gírala con el ratón o arrastrando) y puedes alternar a su 1ª persona con clic
+derecho o salto; clic izquierdo cambia de aliado.
 
 ## Estructura
 

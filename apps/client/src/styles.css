@@ -24,11 +24,17 @@ button { font: inherit; }
 .screen {
   height: 100%;
   display: flex;
+  /* «safe»: si el contenido no cabe, se alinea al inicio y se puede desplazar
+     (sin él, el centrado flex corta la parte superior en pantallas bajas).
+     Las dos primeras líneas son el respaldo para navegadores sin «safe». */
   align-items: center;
   justify-content: center;
+  align-items: safe center;
+  justify-content: safe center;
   gap: 2rem;
   background: radial-gradient(1200px 700px at 70% 20%, #1b2d40 0%, var(--bg) 60%);
   padding: 2rem;
+  overflow-y: auto;
 }
 .screen.menu { justify-content: space-evenly; }
 .menu-left h1 { font-size: clamp(2rem, 4.5vw, 3.4rem); color: var(--accent); text-shadow: 0 2px 18px rgba(83,224,232,0.35); }
@@ -278,7 +284,13 @@ tr.dead { opacity: 0.45; }
 
 /* ===== Pantallas pequeñas (móvil) ===== */
 @media (max-width: 820px), (max-height: 500px) {
-  .screen { padding: 1rem; gap: 1rem; }
+  .screen {
+    gap: 1rem;
+    /* respetar muescas/esquinas (viewport-fit=cover) */
+    padding: calc(0.8rem + env(safe-area-inset-top)) calc(0.8rem + env(safe-area-inset-right))
+      calc(0.8rem + env(safe-area-inset-bottom)) calc(0.8rem + env(safe-area-inset-left));
+  }
+  .panel { max-height: none; }
   .screen.menu { gap: 0.4rem; }
   .menu-left h1 { font-size: clamp(1.3rem, 4.5vw, 2rem); }
   .tagline { margin-bottom: 0.8rem; }
