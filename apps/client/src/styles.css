@@ -81,6 +81,7 @@ button { font: inherit; }
   border-radius: 8px; padding: 0.5rem 0.7rem; font-size: 1rem;
 }
 .code { font-family: ui-monospace, monospace; letter-spacing: 0.3em; color: #ffd27d; }
+.icono { display: inline-block; vertical-align: -0.17em; }
 .hint { opacity: 0.65; font-size: 0.9rem; }
 
 .set-row { display: flex; align-items: center; gap: 0.8rem; justify-content: space-between; }

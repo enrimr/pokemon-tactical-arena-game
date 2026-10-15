@@ -236,6 +236,17 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   corrección de pose T en Gardevoir y Lucario), colores, sonidos y efectos
   elementales afines. Sin cadena evolutiva (formas finales, como en Pokkén).
 
+## Iconos SVG propios en toda la interfaz (2026-10-15)
+
+- Nuevo `apps/client/src/iconos.ts`: 19 iconos SVG dibujados a mano (trazos
+  geométricos, `currentColor`), sin emojis ni glifos de fuente: pausa, compra,
+  marcador, giroscopio, disparo (mira), salto/agachar, recarga, habilidad,
+  granada (nube), instalar/soltar (rombos), bot, escudo, evolución, pokéball,
+  diana (tiro a la cabeza), flecha del registro y corona de anfitrión.
+- Sustituyen a los emojis y símbolos prestados en: botones y píldoras táctiles,
+  barra de escudo, marcador y resultados (icono de bot), registro de bajas
+  (flecha/diana y eventos de evolución/pokéball) y lobby (corona).
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

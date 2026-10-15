@@ -440,7 +440,7 @@ export class GameClient {
           this.hud.centerMessage(`¡Has evolucionado a ${nombre}!`, 'PS máx. +15 · recarga más rápida · habilidad recargada', 3000);
           audio.evolucion();
         } else if (quien) {
-          this.hud.addKill('✨', `${quien.nombre} evolucionó a ${nombre}`, (quien.team ?? 0) as Team, false, null);
+          this.hud.addKill('', `${quien.nombre} evolucionó a ${nombre}`, (quien.team ?? 0) as Team, false, null, 'evolucion');
         }
         break;
       }
@@ -463,7 +463,7 @@ export class GameClient {
           audio.pokeball();
         } else {
           const quien = this.registry.get(e.player);
-          if (quien) this.hud.addKill('◓', `${quien.nombre} abrió una Pokéball`, (quien.team ?? 0) as Team, false, null);
+          if (quien) this.hud.addKill('', `${quien.nombre} abrió una Pokéball`, (quien.team ?? 0) as Team, false, null, 'pokeball');
         }
         break;
       }

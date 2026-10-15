@@ -4,6 +4,7 @@ import {
   maxEvoStage, STR, TICK_RATE, WEAPONS, inRect,
 } from '@pta/shared';
 import { settings } from './settings.js';
+import { iconoSvg, type IconoNombre } from './iconos.js';
 
 function el(tag: string, cls: string, parent: HTMLElement): HTMLElement {
   const e = document.createElement(tag);
@@ -91,7 +92,7 @@ export class Hud {
     const hpOuter = el('div', 'bar hp', hpRow);
     this.hpBar = el('div', 'bar-fill', hpOuter);
     const shRow = el('div', 'bar-row', bl);
-    el('div', 'bar-num small', shRow).textContent = '🛡';
+    el('div', 'bar-num small', shRow).innerHTML = iconoSvg('escudo', 13);
     const shOuter = el('div', 'bar shield', shRow);
     this.shieldBar = el('div', 'bar-fill', shOuter);
 
@@ -317,14 +318,15 @@ export class Hud {
     }, ms);
   }
 
-  addKill(killer: string, victim: string, killerTeam: Team, headshot: boolean, assist: string | null): void {
+  addKill(killer: string, victim: string, killerTeam: Team, headshot: boolean, assist: string | null, icono?: IconoNombre): void {
     const row = document.createElement('div');
     row.className = 'kill-row';
     const k = document.createElement('span');
     k.className = killerTeam === 0 ? 'team-blue' : 'team-orange';
-    k.textContent = killer + (assist ? ` + ${assist}` : '');
+    if (icono) k.innerHTML = iconoSvg(icono, 13); // icono de evento (estático, sin datos de usuario)
+    else k.textContent = killer + (assist ? ` + ${assist}` : '');
     const mid = document.createElement('span');
-    mid.textContent = headshot ? ' ⦿ ' : ' ▸ ';
+    mid.innerHTML = ` ${iconoSvg(headshot ? 'diana' : 'flecha', 11)} `;
     const v = document.createElement('span');
     v.className = killerTeam === 0 ? 'team-orange' : 'team-blue';
     v.textContent = victim;
@@ -352,7 +354,7 @@ export class Hud {
       players
         .filter((p) => p.team === team)
         .sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))
-        .map((p) => `<tr${p.alive ? '' : ' class="dead"'}><td>${p.esBot ? '🤖 ' : ''}${esc(p.nombre)}</td><td>${p.kills ?? 0}</td><td>${p.deaths ?? 0}</td><td>${p.assists ?? 0}</td><td>${p.damageDealt ?? 0}</td></tr>`)
+        .map((p) => `<tr${p.alive ? '' : ' class="dead"'}><td>${p.esBot ? iconoSvg('bot', 13) + ' ' : ''}${esc(p.nombre)}</td><td>${p.kills ?? 0}</td><td>${p.deaths ?? 0}</td><td>${p.assists ?? 0}</td><td>${p.damageDealt ?? 0}</td></tr>`)
         .join('');
     this.scoreboard.innerHTML = `
       <h3>${STR.marcador} — ${match.score[0]} : ${match.score[1]}</h3>

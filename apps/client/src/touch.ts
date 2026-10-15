@@ -1,5 +1,6 @@
 import { BTN } from '@pta/shared';
 import { persist, settings } from './settings.js';
+import { iconoSvg, type IconoNombre } from './iconos.js';
 import type { InputManager } from './input.js';
 
 /**
@@ -62,8 +63,8 @@ export class TouchControls {
     this.root.appendChild(this.joyBase);
 
     // Botones de acción (mantener = botón pulsado del bitmask)
-    const bitBtn = (cls: string, label: string, bit: number, toggle = false): HTMLButtonElement => {
-      const b = this.boton(cls, label);
+    const bitBtn = (cls: string, icono: IconoNombre, bit: number, toggle = false): HTMLButtonElement => {
+      const b = this.boton(cls, icono);
       if (toggle) {
         b.addEventListener('pointerdown', (e) => {
           e.preventDefault();
@@ -82,44 +83,44 @@ export class TouchControls {
       return b;
     };
 
-    bitBtn('disparo', '◉', BTN.FIRE);
-    bitBtn('salto', '⤒', BTN.JUMP);
-    bitBtn('agachar', '⤓', BTN.CROUCH, true);
-    bitBtn('recarga', 'R', BTN.RELOAD);
-    bitBtn('habilidad', '✦', BTN.ABILITY);
-    bitBtn('granada', '◌', BTN.GRENADE);
-    bitBtn('usar', 'E', BTN.USE);
-    this.soltarBtn = bitBtn('soltar', '⬡', BTN.DROP);
+    bitBtn('disparo', 'disparo', BTN.FIRE);
+    bitBtn('salto', 'salto', BTN.JUMP);
+    bitBtn('agachar', 'agachar', BTN.CROUCH, true);
+    bitBtn('recarga', 'recarga', BTN.RELOAD);
+    bitBtn('habilidad', 'habilidad', BTN.ABILITY);
+    bitBtn('granada', 'granada', BTN.GRENADE);
+    bitBtn('usar', 'usar', BTN.USE);
+    this.soltarBtn = bitBtn('soltar', 'soltar', BTN.DROP);
     this.soltarBtn.classList.add('hidden');
 
     // Fila superior de píldoras (contenedor flexible: nunca se montan entre sí)
     const pills = document.createElement('div');
     pills.className = 'touch-pills';
     this.root.appendChild(pills);
-    const pill = (cls: string, label: string, title: string): HTMLButtonElement => {
+    const pill = (cls: string, icono: IconoNombre, title: string): HTMLButtonElement => {
       const b = document.createElement('button');
       b.className = `touch-btn pill ${cls}`;
-      b.textContent = label;
+      b.innerHTML = iconoSvg(icono, 20);
       b.title = title;
       pills.appendChild(b);
       return b;
     };
-    const giro = pill('giro', '🧭', 'Apuntado con giroscopio');
+    const giro = pill('giro', 'giro', 'Apuntado con giroscopio');
     giro.classList.toggle('activo', settings.giroscopio);
     giro.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       void this.toggleGyro(giro);
     });
-    const marcador = pill('marcador', '▤', 'Marcador');
+    const marcador = pill('marcador', 'marcador', 'Marcador');
     marcador.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       this.marcadorActivo = !this.marcadorActivo;
       this.input.setHeld(settings.binds.marcador, this.marcadorActivo);
       marcador.classList.toggle('activo', this.marcadorActivo);
     });
-    const compra = pill('compra', '🛒', 'Compra');
+    const compra = pill('compra', 'compra', 'Compra');
     compra.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onComprar(); });
-    const pausa = pill('pausa', '☰', 'Pausa');
+    const pausa = pill('pausa', 'pausa', 'Pausa');
     pausa.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onPausa(); });
 
     if (settings.giroscopio) this.startGyro();
@@ -181,10 +182,10 @@ export class TouchControls {
     this.input.applyLookRad(dyaw, dpitch);
   };
 
-  private boton(cls: string, label: string): HTMLButtonElement {
+  private boton(cls: string, icono: IconoNombre): HTMLButtonElement {
     const b = document.createElement('button');
     b.className = `touch-btn ${cls}`;
-    b.textContent = label;
+    b.innerHTML = iconoSvg(icono, cls === 'disparo' ? 36 : 24);
     this.root.appendChild(b);
     return b;
   }

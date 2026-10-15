@@ -7,6 +7,7 @@ import { createCharacterModel, CharacterModel } from './models.js';
 import { GameClient } from './game.js';
 import { Transport, WSTransport, WorkerTransport, wsUrl } from './net.js';
 import { settings, persist } from './settings.js';
+import { iconoSvg } from './iconos.js';
 import { buildSettingsPanel } from './settingsUI.js';
 import { audio } from './audio.js';
 
@@ -359,7 +360,7 @@ export class App {
         ul.innerHTML = '';
         for (const p of state!.jugadores.filter((j) => j.team === team)) {
           const li = document.createElement('li');
-          li.textContent = `${p.esAnfitrion ? '★ ' : ''}${p.nombre}${p.listo ? ' ✓' : ''}${p.conectado ? '' : ' (desc.)'}`;
+          li.innerHTML = `${p.esAnfitrion ? iconoSvg('corona', 13) + ' ' : ''}${p.nombre.replace(/[<>&]/g, '')}${p.listo ? ' ✓' : ''}${p.conectado ? '' : ' (desc.)'}`;
           if (p.id === myId) li.classList.add('me');
           ul.appendChild(li);
         }
@@ -457,7 +458,7 @@ export class App {
       players
         .filter((p) => p.team === team)
         .sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))
-        .map((p) => `<tr><td>${p.esBot ? '🤖 ' : ''}${p.nombre.replace(/</g, '&lt;')}</td><td>${p.kills ?? 0}</td><td>${p.deaths ?? 0}</td><td>${p.assists ?? 0}</td><td>${p.damageDealt ?? 0}</td></tr>`)
+        .map((p) => `<tr><td>${p.esBot ? iconoSvg('bot', 13) + ' ' : ''}${p.nombre.replace(/</g, '&lt;')}</td><td>${p.kills ?? 0}</td><td>${p.deaths ?? 0}</td><td>${p.assists ?? 0}</td><td>${p.damageDealt ?? 0}</td></tr>`)
         .join('');
     s.innerHTML = `
       <div class="panel wide">
