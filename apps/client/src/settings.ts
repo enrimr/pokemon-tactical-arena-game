@@ -31,6 +31,8 @@ export interface Settings {
   resolucionInterna: 1 | 0.75;
   /** Usar los modelos oficiales descargados en local, si existen (ver ASSET_SOURCES.md). */
   modelosOficiales: boolean;
+  /** Apuntado con el giroscopio en dispositivos táctiles (se suma al arrastre). */
+  giroscopio: boolean;
   binds: KeyBinds;
   alias: string;
 }
@@ -65,6 +67,7 @@ const DEFAULTS: Settings = {
   destelloAccesible: false,
   resolucionInterna: 1,
   modelosOficiales: false,
+  giroscopio: false,
   binds: { ...DEFAULT_BINDS },
   alias: '',
 };

@@ -1,5 +1,5 @@
 import { BTN } from '@pta/shared';
-import { settings } from './settings.js';
+import { persist, settings } from './settings.js';
 import type { InputManager } from './input.js';
 
 /**
@@ -92,18 +92,37 @@ export class TouchControls {
     this.soltarBtn = bitBtn('soltar', '⬡', BTN.DROP);
     this.soltarBtn.classList.add('hidden');
 
-    // Fila superior: pausa, compra y marcador
-    const pausa = this.boton('pill pausa', '☰ Pausa');
-    pausa.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onPausa(); });
-    const compra = this.boton('pill compra', 'Compra');
-    compra.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onComprar(); });
-    const marcador = this.boton('pill marcador', 'Marcador');
+    // Fila superior de píldoras (contenedor flexible: nunca se montan entre sí)
+    const pills = document.createElement('div');
+    pills.className = 'touch-pills';
+    this.root.appendChild(pills);
+    const pill = (cls: string, label: string, title: string): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.className = `touch-btn pill ${cls}`;
+      b.textContent = label;
+      b.title = title;
+      pills.appendChild(b);
+      return b;
+    };
+    const giro = pill('giro', '🧭', 'Apuntado con giroscopio');
+    giro.classList.toggle('activo', settings.giroscopio);
+    giro.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      void this.toggleGyro(giro);
+    });
+    const marcador = pill('marcador', '▤', 'Marcador');
     marcador.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       this.marcadorActivo = !this.marcadorActivo;
       this.input.setHeld(settings.binds.marcador, this.marcadorActivo);
       marcador.classList.toggle('activo', this.marcadorActivo);
     });
+    const compra = pill('compra', '🛒', 'Compra');
+    compra.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onComprar(); });
+    const pausa = pill('pausa', '☰', 'Pausa');
+    pausa.addEventListener('pointerdown', (e) => { e.preventDefault(); cb.onPausa(); });
+
+    if (settings.giroscopio) this.startGyro();
 
     // Aviso para jugar en horizontal (solo visible en vertical, vía CSS)
     const girar = document.createElement('div');
@@ -111,6 +130,56 @@ export class TouchControls {
     girar.textContent = 'Gira el dispositivo: el juego está pensado para horizontal';
     this.root.appendChild(girar);
   }
+
+  // ===== Giroscopio: apuntado fino sumado al arrastre (estilo Splatoon) =====
+
+  /** iOS pide permiso explícito (debe solicitarse en un gesto del usuario). */
+  private async toggleGyro(btn: HTMLButtonElement): Promise<void> {
+    if (settings.giroscopio) {
+      settings.giroscopio = false;
+      this.stopGyro();
+    } else {
+      // iOS exige permiso explícito (y responde 'granted'/'denied'); Chromium
+      // también expone el método pero contesta 'prompt': solo bloquea el 'denied'.
+      const DME = DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> };
+      if (typeof DME.requestPermission === 'function') {
+        try {
+          if (await DME.requestPermission() === 'denied') return;
+        } catch {
+          return; // denegado o no disponible
+        }
+      }
+      settings.giroscopio = true;
+      this.startGyro();
+    }
+    persist();
+    btn.classList.toggle('activo', settings.giroscopio);
+  }
+
+  private startGyro(): void {
+    window.addEventListener('devicemotion', this.onMotion);
+  }
+
+  private stopGyro(): void {
+    window.removeEventListener('devicemotion', this.onMotion);
+  }
+
+  private onMotion = (e: DeviceMotionEvent): void => {
+    if (!settings.giroscopio || this.input.touchSuspended) return;
+    const r = e.rotationRate;
+    if (!r || (r.beta === null && r.gamma === null)) return;
+    // e.interval es ms según la especificación, pero algún navegador da segundos
+    const raw = e.interval || 16;
+    const dt = Math.min(0.05, raw > 1 ? raw / 1000 : raw);
+    // En horizontal, el eje vertical del mundo ≈ eje X del dispositivo (beta) y
+    // el cabeceo gira sobre el eje largo (gamma). El signo depende del lado.
+    const ang = (screen.orientation?.angle ?? 0);
+    const s = ang === 270 || ang === -90 ? -1 : 1;
+    const DEG = Math.PI / 180;
+    const dyaw = (r.beta ?? 0) * s * DEG * dt;
+    const dpitch = (r.gamma ?? 0) * s * DEG * dt;
+    this.input.applyLookRad(dyaw, dpitch);
+  };
 
   private boton(cls: string, label: string): HTMLButtonElement {
     const b = document.createElement('button');
@@ -190,6 +259,7 @@ export class TouchControls {
   }
 
   dispose(): void {
+    this.stopGyro();
     this.input.touch = false;
     this.input.touchMove.x = 0;
     this.input.touchMove.z = 0;

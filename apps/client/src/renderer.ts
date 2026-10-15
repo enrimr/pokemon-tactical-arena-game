@@ -84,6 +84,8 @@ export class GameRenderer {
   private projFx = new Map<number, THREE.Mesh>();
   private pickupFx = new Map<number, THREE.Group>();
   private pokeballTemplate!: THREE.Group;
+  private auraTemplates = new Map<number, THREE.Group>();
+  private auraRingMats = new Map<number, THREE.MeshBasicMaterial>();
   private attackFx: AttackFx[] = [];
   private puffs: PuffFx[] = [];
   private coreMesh: THREE.Group;
@@ -768,6 +770,46 @@ export class GameRenderer {
     for (const d of this.doors) d.visible = closed;
   }
 
+  /**
+   * Aura de color del equipo bajo cada Pokémon (azul/naranja): anillo en los
+   * pies + halo suave. Identifica el bando con cualquier modelo (propio u
+   * oficial) y desde cualquier ángulo.
+   */
+  private buildTeamAura(team: number): THREE.Group {
+    let template = this.auraTemplates.get(team);
+    if (!template) {
+      const color = team === 0 ? 0x4f8dff : 0xff9a3d;
+      template = new THREE.Group();
+      const ringMat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
+      });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.47, 28), ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.05;
+      // Halo radial (reutiliza el degradado del canvas)
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const ctx = c.getContext('2d')!;
+      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 32);
+      grad.addColorStop(0, 'rgba(255,255,255,0.55)');
+      grad.addColorStop(0.6, 'rgba(255,255,255,0.18)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, color, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending,
+      }));
+      glow.scale.setScalar(1.5);
+      glow.position.y = 0.25;
+      template.add(ring, glow);
+      this.auraTemplates.set(team, template);
+      this.auraRingMats.set(team, ringMat);
+      this.disposables.push(ring.geometry, ringMat, tex, glow.material);
+    }
+    return template.clone();
+  }
+
   // ===== Jugadores =====
 
   setFirstPersonVisible(v: boolean): void {
@@ -775,6 +817,8 @@ export class GameRenderer {
   }
 
   updatePlayers(views: PlayerView[], selfId: number, time: number, myTeam = -1): void {
+    // Latido suave de las auras de equipo (material compartido por equipo)
+    for (const [, m] of this.auraRingMats) m.opacity = 0.72 + Math.sin(time * 2.6) * 0.14;
     const seen = new Set<number>();
     for (const v of views) {
       seen.add(v.id);
@@ -792,6 +836,7 @@ export class GameRenderer {
         marker.scale.set(1.6, 1.6, 1);
         marker.position.y = 1.95;
         model.root.add(marker);
+        model.root.add(this.buildTeamAura(v.team));
         this.scene.add(model.root);
         entry = { model, marker, character: v.character, evoStage: v.evoStage };
         this.models.set(v.id, entry);

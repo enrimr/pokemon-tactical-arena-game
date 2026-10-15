@@ -99,7 +99,11 @@ WASD mover · ratón mirar · clic izq. atacar · clic der. concentrar apuntado 
 Ctrl agacharse · Espacio saltar · R recargar · Q habilidad · G granada · E interactuar/instalar/
 desactivar · F soltar núcleo · B compra · Tab marcador · 1 ataque principal · Esc menú/ratón.
 Ajustes disponibles: sensibilidad, invertir Y, FOV 75–105, volúmenes, calidad, resolución
-interna 75 %, movimiento reducido y destello accesible (persisten en el navegador).
+interna 75 %, movimiento reducido, destello accesible y giroscopio (persisten en el navegador).
+En móvil/tableta: joystick virtual (medio recorrido = caminar), arrastre para mirar, botones
+en arco junto al disparo y, opcionalmente, **apuntado con giroscopio** (píldora 🧭, se suma al
+arrastre, estilo Splatoon; en iOS pide permiso). Cada Pokémon lleva un **aura con el color de
+su equipo** (anillo azul/naranja en los pies) para identificar los bandos de un vistazo.
 
 ## Estructura
 

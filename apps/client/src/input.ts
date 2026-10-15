@@ -33,6 +33,16 @@ export class InputManager {
     return this.locked || (this.touch && !this.touchSuspended);
   }
 
+  /**
+   * Giro de cámara en radianes (giroscopio): 1:1 con el movimiento físico del
+   * dispositivo, sin sensibilidad ni inversión (invertir un gesto físico marea).
+   */
+  applyLookRad(dyaw: number, dpitch: number): void {
+    this.yaw += dyaw;
+    const lim = 1.45;
+    this.pitch = Math.max(-lim, Math.min(lim, this.pitch + dpitch));
+  }
+
   /** Giro de cámara en píxeles de arrastre (táctil); respeta sensibilidad e inversión. */
   applyLook(dx: number, dy: number): void {
     if (!this.enabled || !this.active) return;

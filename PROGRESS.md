@@ -178,6 +178,24 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   5v5 completa de bots en cada mapa nuevo (combate, objetivo, nadie sale del mapa);
   86 en total.
 
+## Modo móvil pulido, giroscopio y auras de equipo (2026-10-15)
+
+- Disposición táctil revisada con medición automática de solapes
+  (`tools/_movil_check.mjs`, viewports 667×375/844×390/1024×768): las píldoras
+  superiores pasan a una fila flexible de iconos (🧭 ▤ 🛒 ☰) que no puede montarse,
+  el racimo de botones se compacta en arco junto al disparo (nada por encima de
+  ~260 px), la munición pasa abajo a la izquierda y en anchos de teléfono se oculta
+  la etiqueta de ronda. Antes: salto pisaba «Marcador» y la munición quedaba bajo
+  el botón de soltar en el centro.
+- Apuntado con giroscopio (opcional): píldora 🧭 en táctil y ajuste persistente.
+  `devicemotion.rotationRate` integrado 1:1 en radianes (`input.applyLookRad`, sin
+  sensibilidad ni inversión), mapeado según la orientación de pantalla y sumado al
+  arrastre. Permiso de iOS gestionado (Chromium contesta 'prompt': solo bloquea
+  'denied'). Verificado con eventos sintéticos (Δyaw exacto al esperado).
+- Aura de color de equipo bajo cada Pokémon: anillo azul/naranja en los pies +
+  halo radial con latido suave, clonado de una plantilla por equipo. Identifica
+  el bando con modelos propios y oficiales desde cualquier ángulo.
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

@@ -236,21 +236,25 @@ tr.dead { opacity: 0.45; }
   font-size: 1.35rem; -webkit-tap-highlight-color: transparent;
 }
 .touch-btn.activo { background: rgba(83,224,232,0.45); border-color: var(--accent); }
-.touch-btn.disparo { right: 96px; bottom: 84px; width: 88px; height: 88px; font-size: 2rem; background: rgba(255,107,107,0.3); border-color: rgba(255,150,150,0.5); }
-.touch-btn.salto { right: 26px; bottom: 190px; }
-.touch-btn.agachar { right: 26px; bottom: 92px; }
-.touch-btn.recarga { right: 136px; bottom: 196px; width: 50px; height: 50px; }
-.touch-btn.habilidad { right: 210px; bottom: 130px; }
-.touch-btn.granada { right: 216px; bottom: 42px; width: 50px; height: 50px; }
-.touch-btn.usar { right: 108px; bottom: 262px; width: 50px; height: 50px; }
-.touch-btn.soltar { right: 288px; bottom: 56px; width: 46px; height: 46px; }
-.touch-btn.pill {
-  width: auto; height: 38px; border-radius: 19px; padding: 0 0.9rem;
-  font-size: 0.85rem; top: calc(0.6rem + env(safe-area-inset-top));
+/* Racimo compacto en arco alrededor del disparo: nada por encima de ~260 px
+   del borde inferior, para que en pantallas bajas no invada las píldoras */
+.touch-btn.disparo { right: 90px; bottom: 70px; width: 84px; height: 84px; font-size: 2rem; background: rgba(255,107,107,0.3); border-color: rgba(255,150,150,0.5); }
+.touch-btn.salto { right: 24px; bottom: 160px; }
+.touch-btn.agachar { right: 24px; bottom: 66px; }
+.touch-btn.usar { right: 110px; bottom: 200px; width: 50px; height: 50px; }
+.touch-btn.recarga { right: 192px; bottom: 164px; width: 50px; height: 50px; }
+.touch-btn.habilidad { right: 220px; bottom: 98px; width: 54px; height: 54px; }
+.touch-btn.granada { right: 226px; bottom: 32px; width: 50px; height: 50px; }
+.touch-btn.soltar { right: 296px; bottom: 36px; width: 46px; height: 46px; }
+/* Píldoras superiores en una fila flexible: nunca se montan entre sí */
+.touch-pills {
+  position: absolute; top: calc(0.6rem + env(safe-area-inset-top)); right: 0.7rem;
+  display: flex; gap: 0.5rem; pointer-events: none;
 }
-.touch-btn.pausa { right: 0.7rem; }
-.touch-btn.compra { right: 0.7rem; top: calc(3.5rem + env(safe-area-inset-top)); }
-.touch-btn.marcador { right: 0.7rem; top: calc(6.4rem + env(safe-area-inset-top)); }
+.touch-btn.pill {
+  position: static; width: 42px; height: 42px; border-radius: 50%; padding: 0;
+  font-size: 1.05rem;
+}
 .touch-girar {
   position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
   text-align: center; padding: 2rem; background: rgba(5,9,14,0.9);
@@ -261,11 +265,16 @@ tr.dead { opacity: 0.45; }
 }
 
 /* HUD reubicado en táctil: que los pulgares no tapen la información */
-.tactil .killfeed { right: 7.5rem; }
-.tactil .hud-br { right: 356px; bottom: 0.8rem; }
+.tactil .killfeed { top: 3.6rem; right: 0.8rem; }
+.tactil .hud-br { right: auto; left: 0.7rem; bottom: 0.8rem; text-align: left; }
+.tactil .hud-br .bar-row { justify-content: flex-start; }
 .tactil .hud-bl { bottom: auto; top: 9.2rem; left: 0.7rem; width: 190px; }
 .tactil .dev-overlay { bottom: auto; top: 15rem; }
-.tactil .training-help { bottom: auto; top: 3.4rem; }
+.tactil .training-help { bottom: auto; top: 7rem; }
+/* En anchos de teléfono, compactar el marcador superior para no rozar las píldoras */
+@media (max-width: 900px) {
+  .tactil .round-label { display: none; }
+}
 
 /* ===== Pantallas pequeñas (móvil) ===== */
 @media (max-width: 820px), (max-height: 500px) {

@@ -98,6 +98,7 @@ export function buildSettingsPanel(parent: HTMLElement, onClose: () => void): vo
 
   toggle(STR.movimientoReducido, settings.movimientoReducido, (v) => { settings.movimientoReducido = v; });
   toggle(STR.destelloAccesible, settings.destelloAccesible, (v) => { settings.destelloAccesible = v; });
+  toggle('Giroscopio (apuntado en móvil, se suma al arrastre)', settings.giroscopio, (v) => { settings.giroscopio = v; });
 
   toggle('Modelos oficiales (si están descargados)', settings.modelosOficiales, (v) => {
     settings.modelosOficiales = v;
