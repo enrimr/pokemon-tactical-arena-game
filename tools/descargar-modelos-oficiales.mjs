@@ -31,6 +31,11 @@ const MODELOS = [
   { dex: 2, nombre: 'Ivysaur' },
   { dex: 3, nombre: 'Venusaur' },
   { dex: 150, nombre: 'Mewtwo' },
+  // Luchadores de Pokkén Tournament
+  { dex: 94, nombre: 'Gengar' },
+  { dex: 282, nombre: 'Gardevoir' },
+  { dex: 448, nombre: 'Lucario' },
+  { dex: 445, nombre: 'Garchomp' },
 ];
 
 await mkdir(DEST, { recursive: true });

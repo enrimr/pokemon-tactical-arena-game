@@ -219,6 +219,23 @@ Estado: **entrega completa y verificada** (2026-10-08). Comandos: `npm install`,
   «Impactrueno». Charmander/Squirtle y evoluciones sin clips siguen con los
   gestos procedurales.
 
+## Ajustes compactos en móvil y cuatro luchadores de Pokkén (2026-10-15)
+
+- Móvil: un solo contexto de scroll en las pantallas (el panel ya no se limita a
+  92vh), ajustes compactados (filas y controles menores, nota pequeña) y a dos
+  columnas en apaisado; las teclas reasignables se ocultan en táctil
+  (`.solo-teclado`). Auditoría automática (`tools/_audit_movil.mjs`): menú,
+  ajustes, selección, crear/unirse, créditos, compra y pausa sin desbordes y con
+  scroll completo en 667×375.
+- Centrado de los modelos oficiales por el hueso de la cadera (antes el centro de
+  la caja: Mewtwo quedaba adelantado sobre su anillo por la cola).
+- Cuatro personajes nuevos del plantel de Pokkén Tournament: **Gengar** (Niebla
+  Sombría), **Gardevoir** (Premonición), **Lucario** (Destello de Aura) y
+  **Garchomp** (Bramido Dragón), con nombres de ataque canónicos por perfil,
+  modelos procedurales propios, modelos oficiales (dex 94/282/448/445, con
+  corrección de pose T en Gardevoir y Lucario), colores, sonidos y efectos
+  elementales afines. Sin cadena evolutiva (formas finales, como en Pokkén).
+
 ## Pendiente conocido (documentado en TEST_REPORT.md)
 
 - Inspección jugable con ratón físico (sensación de apuntado) y escucha manual del audio.

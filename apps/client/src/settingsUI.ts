@@ -115,12 +115,13 @@ export function buildSettingsPanel(parent: HTMLElement, onClose: () => void): vo
     + 'pokemon-party/3d-pokemon (requiere conexión). Si no hay ninguno, se usan los modelos propios.';
   wrap.appendChild(notaModelos);
 
-  // Controles reasignables
+  // Controles reasignables (ocultos en táctil: no hay teclado)
   const h = document.createElement('h3');
   h.textContent = STR.controles;
+  h.className = 'solo-teclado';
   wrap.appendChild(h);
   const bindList = document.createElement('div');
-  bindList.className = 'bind-list';
+  bindList.className = 'bind-list solo-teclado';
   wrap.appendChild(bindList);
 
   const renderBinds = (): void => {
@@ -150,7 +151,7 @@ export function buildSettingsPanel(parent: HTMLElement, onClose: () => void): vo
   renderBinds();
 
   const reset = document.createElement('button');
-  reset.className = 'menu-btn';
+  reset.className = 'menu-btn solo-teclado';
   reset.textContent = STR.restaurarControles;
   reset.onclick = () => {
     settings.binds = { ...DEFAULT_BINDS };

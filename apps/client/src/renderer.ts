@@ -681,7 +681,10 @@ export class GameRenderer {
   }
 
   setFirstPersonCharacter(char: CharacterId): void {
-    const color = { pikachu: 0xf7d02c, charmander: 0xee8130, squirtle: 0x6390f0, bulbasaur: 0x59b5a2, mewtwo: 0xcbb3e3 }[char];
+    const color = {
+      pikachu: 0xf7d02c, charmander: 0xee8130, squirtle: 0x6390f0, bulbasaur: 0x59b5a2, mewtwo: 0xcbb3e3,
+      gengar: 0x7a5fb0, gardevoir: 0xdef5ec, lucario: 0x3f6fd6, garchomp: 0x3d4db0,
+    }[char];
     (this.fpPawL.material as THREE.MeshStandardMaterial).color.set(color);
     for (const m of this.fpIndicator.mats) m.color.set(CHARACTER_COLORS[char]);
   }

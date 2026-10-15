@@ -590,7 +590,10 @@ export class GameSim {
       if (this.edge(p, input, BTN.ABILITY) && p.abilityCharges > 0) {
         p.abilityCharges--;
         p.interaction = null;
-        this.throwUtility(p, ({ pikachu: 'destello', charmander: 'ascua', squirtle: 'cortina', bulbasaur: 'esporas', mewtwo: 'premonicion' } as const)[p.character]);
+        this.throwUtility(p, ({
+          pikachu: 'destello', charmander: 'ascua', squirtle: 'cortina', bulbasaur: 'esporas', mewtwo: 'premonicion',
+          gengar: 'cortina', gardevoir: 'premonicion', lucario: 'destello', garchomp: 'esporas',
+        } as const)[p.character]);
       }
       if (this.edge(p, input, BTN.GRENADE) && p.grenadeCharges > 0) {
         p.grenadeCharges--;

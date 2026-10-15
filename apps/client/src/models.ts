@@ -122,6 +122,10 @@ export const CHARACTER_COLORS: Record<CharacterId, number> = {
   squirtle: 0x74c6ff,
   bulbasaur: 0x8ee67a,
   mewtwo: 0xcf9af2,
+  gengar: 0x9f6fe0,
+  gardevoir: 0x8be6c8,
+  lucario: 0x58a6ff,
+  garchomp: 0x5563c9,
 };
 
 // ===== Indicador de ataque: la forma del orbe revela el perfil equipado =====
@@ -719,12 +723,336 @@ function buildMewtwo(): Rig {
   return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
 }
 
+// ===== Gengar: esfera morada sonriente, púas en la espalda, ojos rojos =====
+function buildGengar(): Rig {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const PURPLE = 0x6c4f9e;
+  const DARK = 0x50367a;
+
+  // Cuerpo-cabeza único: esfera grande achatada
+  const blob = sphere(0.46, PURPLE, 1.05, 1, 0.95);
+  blob.position.y = 0.62;
+  body.add(blob);
+  // Púas de la espalda y la coronilla
+  for (const [x, y, z, rx, s] of [
+    [0, 1.06, 0.1, 0.5, 1.1], [-0.2, 1.0, 0.14, 0.6, 0.9], [0.2, 1.0, 0.14, 0.6, 0.9],
+    [0, 0.84, 0.38, 1.1, 1], [-0.26, 0.76, 0.33, 1.1, 0.85], [0.26, 0.76, 0.33, 1.1, 0.85],
+    [0, 0.55, 0.44, 1.5, 0.9],
+  ] as const) {
+    const p = cone(0.07 * s, 0.2 * s, DARK);
+    p.position.set(x, y, z);
+    p.rotation.x = rx;
+    body.add(p);
+  }
+  // Orejas puntiagudas
+  for (const s of [-1, 1]) {
+    const ear = cone(0.11, 0.3, PURPLE);
+    ear.position.set(0.3 * s, 1.06, 0.04);
+    ear.rotation.z = -0.5 * s;
+    body.add(ear);
+  }
+
+  const head = new THREE.Group();
+  head.position.y = 0.74;
+  body.add(head);
+  eyes(head, 0.06, -0.4, 0.17, 0.07, 0xd03030);
+  // Sonrisa enorme de oreja a oreja con dientes
+  const grin = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 6, 20, Math.PI * 0.9), mat(0xf5f2ea));
+  grin.position.set(0, -0.1, -0.37);
+  grin.rotation.z = Math.PI + (Math.PI * 0.1) / 2;
+  grin.rotation.x = -0.25;
+  head.add(grin);
+
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(-0.18, 0.26, 0);
+  legR.position.set(0.18, 0.26, 0);
+  for (const g of [legL, legR]) {
+    const leg = sphere(0.11, PURPLE, 0.9, 1.4, 1);
+    leg.position.y = -0.12;
+    g.add(leg);
+  }
+  body.add(legL, legR);
+
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(-0.44, 0.68, -0.04);
+  armR.position.set(0.44, 0.68, -0.04);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    const arm = sphere(0.08, PURPLE, 0.9, 1.7, 0.9);
+    arm.position.set(0.06 * s, -0.14, -0.04);
+    arm.rotation.z = 0.5 * s;
+    g.add(arm);
+    claws(g, 3, 0.08, -0.3, -0.1, 0.02, 0xf5f2ea);
+  }
+  body.add(armL, armR);
+
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.gengar, 0, 0.68, -0.55);
+  return { root, body, head, legL, legR, armL, armR, indicator, muzzle, quad: false };
+}
+
+// ===== Gardevoir: vestido blanco, melena verde, cuerno rojo en el pecho =====
+function buildGardevoir(): Rig {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const WHITE = 0xf2f6f2;
+  const GREEN = 0x66c7a0;
+
+  // Vestido acampanado (las piernas quedan dentro: grupos vacíos para el rig)
+  const gown = cone(0.4, 0.85, WHITE);
+  gown.position.y = 0.42;
+  body.add(gown);
+  const torso = sphere(0.14, WHITE, 1, 1.8, 0.8);
+  torso.position.y = 0.95;
+  body.add(torso);
+  // Cuerno pectoral rojo (y su par trasero pequeño)
+  const fin = cone(0.07, 0.26, 0xd04848);
+  fin.position.set(0, 0.98, -0.14);
+  fin.rotation.x = -Math.PI / 2;
+  body.add(fin);
+  const finB = cone(0.05, 0.16, 0xd04848);
+  finB.position.set(0, 0.98, 0.12);
+  finB.rotation.x = Math.PI / 2;
+  body.add(finB);
+
+  const head = new THREE.Group();
+  head.position.y = 1.26;
+  body.add(head);
+  const skull = sphere(0.16, WHITE, 1, 1.05, 0.95);
+  head.add(skull);
+  // Casco de pelo verde con cortinas laterales y «cuernos» de gorro
+  const hair = sphere(0.185, GREEN, 1.05, 0.9, 1);
+  hair.position.set(0, 0.05, 0.03);
+  head.add(hair);
+  for (const s of [-1, 1]) {
+    const side = sphere(0.09, GREEN, 0.8, 1.9, 1);
+    side.position.set(0.16 * s, -0.08, 0.02);
+    head.add(side);
+    const picoHair = sphere(0.07, GREEN, 2.2, 0.7, 1);
+    picoHair.position.set(0.2 * s, 0.12, 0);
+    head.add(picoHair);
+  }
+  eyes(head, -0.015, -0.15, 0.075, 0.05, 0xd04848);
+
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(-0.1, 0.3, 0);
+  legR.position.set(0.1, 0.3, 0);
+  body.add(legL, legR); // sin geometría: el vestido las cubre
+
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(-0.17, 1.02, -0.02);
+  armR.position.set(0.17, 1.02, -0.02);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    const arm = sphere(0.05, WHITE, 0.9, 2.4, 0.9);
+    arm.position.set(0.05 * s, -0.16, -0.05);
+    arm.rotation.z = 0.35 * s;
+    g.add(arm);
+  }
+  body.add(armL, armR);
+
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.gardevoir, 0, 1.05, -0.45);
+  return { root, body, head, legL, legR, armL, armR, indicator, muzzle, quad: false };
+}
+
+// ===== Lucario: chacal azul, antifaz negro, pecho crema con púa, orejas altas =====
+function buildLucario(): Rig {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const BLUE = 0x3c7dd0;
+  const BLACK = 0x23262e;
+  const CREAM = 0xe8d9a8;
+
+  const hips = sphere(0.22, BLUE, 1, 1.1, 0.9);
+  hips.position.y = 0.55;
+  body.add(hips);
+  const chest = sphere(0.2, CREAM, 1, 1.3, 0.85);
+  chest.position.y = 0.85;
+  body.add(chest);
+  // Púa del pecho
+  const spike = cone(0.05, 0.16, 0xdfe3e8);
+  spike.position.set(0, 0.92, -0.17);
+  spike.rotation.x = -Math.PI / 2;
+  body.add(spike);
+  // Hombros/esclavina azul
+  const capa = sphere(0.21, BLUE, 1.15, 0.5, 0.95);
+  capa.position.y = 1.02;
+  body.add(capa);
+
+  const head = new THREE.Group();
+  head.position.y = 1.2;
+  body.add(head);
+  const skull = sphere(0.17, BLUE, 1, 0.95, 1);
+  head.add(skull);
+  // Antifaz negro y hocico
+  const mask = sphere(0.165, BLACK, 1.06, 0.5, 0.9);
+  mask.position.set(0, 0.03, -0.03);
+  head.add(mask);
+  const snout = sphere(0.07, CREAM, 0.9, 0.7, 1.6);
+  snout.position.set(0, -0.05, -0.17);
+  head.add(snout);
+  const nose = sphere(0.022, BLACK);
+  nose.position.set(0, -0.02, -0.28);
+  head.add(nose);
+  eyes(head, 0.06, -0.13, 0.085, 0.045, 0xc03838);
+  // Orejas altas y «coletas» sensoras traseras
+  for (const s of [-1, 1]) {
+    const ear = cone(0.06, 0.22, BLACK);
+    ear.position.set(0.1 * s, 0.22, 0.02);
+    ear.rotation.z = -0.2 * s;
+    head.add(ear);
+    const sensor = sphere(0.035, BLACK, 1, 2.6, 1);
+    sensor.position.set(0.12 * s, -0.06, 0.14);
+    sensor.rotation.x = 0.9;
+    head.add(sensor);
+  }
+
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(-0.12, 0.38, 0);
+  legR.position.set(0.12, 0.38, 0);
+  for (const g of [legL, legR]) {
+    const muslo = sphere(0.1, BLUE, 0.9, 1.5, 1);
+    muslo.position.y = -0.1;
+    g.add(muslo);
+    const pie = sphere(0.06, BLACK, 1, 0.6, 1.7);
+    pie.position.set(0, -0.33, -0.04);
+    g.add(pie);
+  }
+  body.add(legL, legR);
+
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(-0.22, 0.92, -0.04);
+  armR.position.set(0.22, 0.92, -0.04);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    const arm = sphere(0.065, BLACK, 0.9, 1.8, 0.9);
+    arm.position.set(0.03 * s, -0.14, -0.05);
+    g.add(arm);
+    // Púa del dorso de la pata
+    const pua = cone(0.035, 0.11, 0xdfe3e8);
+    pua.position.set(0.05 * s, -0.22, -0.02);
+    pua.rotation.z = (Math.PI / 2) * s;
+    g.add(pua);
+  }
+  body.add(armL, armR);
+
+  const tail = new THREE.Group();
+  blobChain(tail, [[0, 0.5, 0.18], [0, 0.42, 0.4], [0, 0.5, 0.6]], 0.06, 0.025, BLUE, 8);
+  body.add(tail);
+
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.lucario, 0, 0.98, -0.5);
+  return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
+}
+
+// ===== Garchomp: tiburón de tierra azul marino, aletas-martillo y guadañas =====
+function buildGarchomp(): Rig {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const NAVY = 0x33418f;
+  const RED = 0xc23c3c;
+  const GOLD = 0xe8c04a;
+
+  const hips = sphere(0.26, NAVY, 1, 1.15, 1);
+  hips.position.y = 0.6;
+  body.add(hips);
+  const chest = sphere(0.23, NAVY, 1, 1.2, 0.95);
+  chest.position.y = 0.95;
+  body.add(chest);
+  // Pecho rojo y rombo dorado
+  const pecho = sphere(0.17, RED, 1, 1.25, 0.5);
+  pecho.position.set(0, 0.88, -0.14);
+  body.add(pecho);
+  const rombo = box(0.09, 0.09, 0.02, GOLD);
+  rombo.position.set(0, 1.02, -0.23);
+  rombo.rotation.z = Math.PI / 4;
+  body.add(rombo);
+  // Aleta dorsal
+  const dorsal = cone(0.09, 0.42, NAVY);
+  dorsal.position.set(0, 1.3, 0.16);
+  dorsal.rotation.x = 0.55;
+  body.add(dorsal);
+
+  const head = new THREE.Group();
+  head.position.y = 1.28;
+  body.add(head);
+  const skull = sphere(0.15, NAVY, 1, 0.9, 1.25);
+  head.add(skull);
+  // Aletas-martillo laterales características
+  for (const s of [-1, 1]) {
+    const fin = sphere(0.05, NAVY, 3.4, 0.5, 0.9);
+    fin.position.set(0.17 * s, 0.04, 0.02);
+    fin.rotation.z = 0.35 * s;
+    head.add(fin);
+    const finTip = sphere(0.045, GOLD, 1.2, 0.45, 0.8);
+    finTip.position.set(0.34 * s, 0.1, 0.02);
+    head.add(finTip);
+  }
+  const jaw = sphere(0.08, NAVY, 0.95, 0.55, 1.5);
+  jaw.position.set(0, -0.08, -0.12);
+  head.add(jaw);
+  eyes(head, 0.04, -0.12, 0.09, 0.045, 0xe8c04a);
+
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(-0.14, 0.4, 0);
+  legR.position.set(0.14, 0.4, 0);
+  for (const g of [legL, legR]) {
+    const muslo = sphere(0.12, NAVY, 0.95, 1.5, 1);
+    muslo.position.y = -0.12;
+    g.add(muslo);
+    const pie = sphere(0.07, NAVY, 1, 0.55, 1.6);
+    pie.position.set(0, -0.36, -0.05);
+    g.add(pie);
+    claws(g, 2, 0.07, -0.37, -0.2, 0.02, 0xf5f2ea);
+  }
+  body.add(legL, legR);
+
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(-0.26, 0.95, -0.02);
+  armR.position.set(0.26, 0.95, -0.02);
+  for (const [g, s] of [[armL, -1], [armR, 1]] as const) {
+    // Brazos-guadaña: aleta plana con filo dorado
+    const hoja = sphere(0.06, NAVY, 1, 2.3, 0.5);
+    hoja.position.set(0.07 * s, -0.2, -0.02);
+    hoja.rotation.z = 0.35 * s;
+    g.add(hoja);
+    const filo = sphere(0.03, GOLD, 0.8, 1.9, 0.4);
+    filo.position.set(0.13 * s, -0.26, -0.02);
+    filo.rotation.z = 0.35 * s;
+    g.add(filo);
+  }
+  body.add(armL, armR);
+
+  const tail = new THREE.Group();
+  blobChain(tail, [[0, 0.5, 0.22], [0, 0.42, 0.5], [0, 0.46, 0.8]], 0.1, 0.04, NAVY, 10);
+  const caudal = cone(0.07, 0.26, NAVY);
+  caudal.position.set(0, 0.52, 0.86);
+  caudal.rotation.x = 0.6;
+  tail.add(caudal);
+  body.add(tail);
+
+  const { muzzle, indicator } = attachIndicator(body, CHARACTER_COLORS.garchomp, 0, 1.05, -0.6);
+  return { root, body, head, legL, legR, armL, armR, tail, indicator, muzzle, quad: false };
+}
+
 const BUILDERS: Record<CharacterId, () => Rig> = {
   pikachu: buildPikachu,
   charmander: buildCharmander,
   squirtle: buildSquirtle,
   bulbasaur: buildBulbasaur,
   mewtwo: buildMewtwo,
+  gengar: buildGengar,
+  gardevoir: buildGardevoir,
+  lucario: buildLucario,
+  garchomp: buildGarchomp,
 };
 
 // ===== Evoluciones: recolor + rasgos añadidos sobre el modelo base =====

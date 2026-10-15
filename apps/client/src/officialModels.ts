@@ -44,6 +44,10 @@ const DEX: Record<CharacterId, number[]> = {
   squirtle: [7, 8, 9],
   bulbasaur: [1, 2, 3],
   mewtwo: [150],
+  gengar: [94],
+  gardevoir: [282],
+  lucario: [448],
+  garchomp: [445],
 };
 
 /** Punto de origen de los ataques (boca), tras normalizar la altura. */
@@ -53,11 +57,16 @@ const MUZZLE: Record<CharacterId, [number, number, number]> = {
   squirtle: [0, 0.92, -0.58],
   bulbasaur: [0, 0.7, -0.78],
   mewtwo: [0, 1.0, -0.52],
+  gengar: [0, 0.85, -0.55],
+  gardevoir: [0, 1.0, -0.45],
+  lucario: [0, 0.98, -0.5],
+  garchomp: [0, 1.0, -0.6],
 };
 
 /** Altura visual objetivo (los procedurales miden ≈1,4 m). */
 const TARGET_HEIGHT: Record<CharacterId, number> = {
   pikachu: 1.35, charmander: 1.35, squirtle: 1.3, bulbasaur: 1.1, mewtwo: 1.45,
+  gengar: 1.3, gardevoir: 1.45, lucario: 1.4, garchomp: 1.5,
 };
 
 /**
@@ -74,6 +83,17 @@ const POSE_FIX: Partial<Record<string, [string, number, number, number][]>> = {
     ['tail1', -0.45, 0, 0],
     ['tail2', -0.25, 0, 0],
     ['tail3', -0.15, 0, 0],
+  ],
+  // Modelos HOME sin clips: bajar los brazos de la pose T
+  'gardevoir:0': [
+    ['larm', 0, 0, -1.05],
+    ['rarm', 0, 0, 1.05],
+  ],
+  'lucario:0': [
+    ['larm', 0, 0, -0.95],
+    ['rarm', 0, 0, 0.95],
+    ['lforearm', 0, 0, -0.2],
+    ['rforearm', 0, 0, 0.2],
   ],
 };
 
@@ -305,12 +325,23 @@ export function createOfficialModel(id: CharacterId, stage = 0): CharacterModel 
   });
   const size = bbox.getSize(new THREE.Vector3());
   const s = TARGET_HEIGHT[id] * escala / Math.max(size.y, 0.001);
+  // Centro en planta: la cadera/raíz del esqueleto si existe (medida ANTES de
+  // escalar, en el mismo espacio que la caja). El centro de la caja desplaza el
+  // cuerpo en modelos con cola larga (Mewtwo quedaba adelantado sobre su anillo).
+  let cx = (bbox.min.x + bbox.max.x) / 2;
+  let cz = (bbox.min.z + bbox.max.z) / 2;
+  let cadera: THREE.Bone | null = null;
+  inner.traverse((o) => {
+    if (!cadera && (o as THREE.Bone).isBone && /hips|waist|pelvis|origin/i.test(o.name)) cadera = o as THREE.Bone;
+  });
+  if (cadera) {
+    const p = new THREE.Vector3();
+    (cadera as THREE.Bone).getWorldPosition(p); // matrices ya actualizadas arriba
+    cx = p.x;
+    cz = p.z;
+  }
   inner.scale.setScalar(s);
-  inner.position.set(
-    -(bbox.min.x + bbox.max.x) / 2 * s,
-    -bbox.min.y * s,
-    -(bbox.min.z + bbox.max.z) / 2 * s,
-  );
+  inner.position.set(-cx * s, -bbox.min.y * s, -cz * s);
   const pivot = new THREE.Group();
   pivot.rotation.y = Math.PI;
   pivot.add(inner);

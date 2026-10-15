@@ -60,7 +60,7 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   Cabeza ×1,5. Sin fuego amigo, sin daño por caída, sin críticos aleatorios.
 - Economía: inicio de mitad 800 cr; baja +200, instalación +200, desactivación +300; victoria
   +2400; derrota 1900 (+400 por derrota consecutiva, máx. +1200). Tope 6000 cr.
-- Perfiles de ataque comunes a los cinco personajes (mismo daño/cadencia/alcance; solo
+- Perfiles de ataque comunes a los nueve personajes (mismo daño/cadencia/alcance; solo
   cambia la identidad elemental), con nombre de movimiento Pokémon por personaje:
 
   | Perfil | Pikachu | Charmander | Squirtle | Bulbasaur | Mewtwo |
@@ -69,6 +69,18 @@ necesita el servidor Node (`npm start`) porque usa WebSocket autoritativo.
   | Ráfaga táctica (1800) | Chispa | Lanzallamas | Rayo Burbuja | Bala Semilla | Psicorrayo |
   | Pulso preciso (2400) | Rayo | Llamarada | Hidrobomba | Rayo Solar | Psíquico |
   | Carga explosiva (2600, daño en área) | Bola Voltio | Estallido | Hidropulso | Bomba Germen | Esfera Aural |
+
+  Y los cuatro luchadores del plantel de Pokkén Tournament (sin cadena evolutiva):
+
+  | Perfil | Gengar | Gardevoir | Lucario | Garchomp |
+  | --- | --- | --- | --- | --- |
+  | Pulso básico | Bola Sombra | Hoja Mágica | Palmeo | Garra Dragón |
+  | Ráfaga táctica | Tinieblas | Psicochoque | Hueso Veloz | Dragoaliento |
+  | Pulso preciso | Pulso Umbrío | Fuerza Lunar | Esfera Aural | Carga Dragón |
+  | Carga explosiva | Bomba Lodo | Brillo Mágico | A Bocajarro | Terremoto |
+
+  Habilidades Q: Gengar *Niebla Sombría* (cortina), Gardevoir *Premonición* (revela),
+  Lucario *Destello de Aura* (ciega), Garchomp *Bramido Dragón* (ralentiza).
 
   La carga explosiva lanza un proyectil que detona al impactar (65 de daño en el centro,
   atenuado hasta el borde de un radio de 3,2 m; las paredes bloquean la onda y no afecta a

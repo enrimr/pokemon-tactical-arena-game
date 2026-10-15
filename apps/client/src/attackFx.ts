@@ -289,7 +289,12 @@ export function createAttackFx(char: CharacterId, weapon: WeaponId, from: Vec3, 
     case 'charmander': llamas(fx, len, f); break;
     case 'squirtle': agua(fx, len, f, weapon === 'rafaga'); break;
     case 'bulbasaur': hojas(fx, len, f, weapon === 'preciso'); break;
-    case 'mewtwo': psiquico(fx, len, f); break;
+    // Los luchadores de Pokkén reutilizan los efectos elementales más afines
+    case 'mewtwo':
+    case 'gengar':
+    case 'gardevoir': psiquico(fx, len, f); break;
+    case 'lucario': rayo(fx, len, f); break;
+    case 'garchomp': llamas(fx, len, f); break;
   }
   return fx;
 }

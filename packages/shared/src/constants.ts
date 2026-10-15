@@ -147,8 +147,14 @@ export const BOT_TAKEOVER_S = 2;
 export const ENEMY_MARKER_S = 2;
 
 export type Team = 0 | 1; // 0 = azul, 1 = naranja
-export type CharacterId = 'pikachu' | 'charmander' | 'squirtle' | 'bulbasaur' | 'mewtwo';
-export const CHARACTERS: CharacterId[] = ['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'mewtwo'];
+// Los cuatro últimos vienen del plantel de Pokkén Tournament (gens 1-4)
+export type CharacterId =
+  | 'pikachu' | 'charmander' | 'squirtle' | 'bulbasaur' | 'mewtwo'
+  | 'gengar' | 'gardevoir' | 'lucario' | 'garchomp';
+export const CHARACTERS: CharacterId[] = [
+  'pikachu', 'charmander', 'squirtle', 'bulbasaur', 'mewtwo',
+  'gengar', 'gardevoir', 'lucario', 'garchomp',
+];
 
 /**
  * Nombre del ataque según el personaje y el perfil equipado. Los tres perfiles son
@@ -161,6 +167,10 @@ export const ATTACK_NAMES: Record<CharacterId, Record<WeaponId, string>> = {
   squirtle: { pulso: 'Pistola Agua', rafaga: 'Rayo Burbuja', preciso: 'Hidrobomba', explosivo: 'Hidropulso' },
   bulbasaur: { pulso: 'Hoja Afilada', rafaga: 'Bala Semilla', preciso: 'Rayo Solar', explosivo: 'Bomba Germen' },
   mewtwo: { pulso: 'Confusión', rafaga: 'Psicorrayo', preciso: 'Psíquico', explosivo: 'Esfera Aural' },
+  gengar: { pulso: 'Bola Sombra', rafaga: 'Tinieblas', preciso: 'Pulso Umbrío', explosivo: 'Bomba Lodo' },
+  gardevoir: { pulso: 'Hoja Mágica', rafaga: 'Psicochoque', preciso: 'Fuerza Lunar', explosivo: 'Brillo Mágico' },
+  lucario: { pulso: 'Palmeo', rafaga: 'Hueso Veloz', preciso: 'Esfera Aural', explosivo: 'A Bocajarro' },
+  garchomp: { pulso: 'Garra Dragón', rafaga: 'Dragoaliento', preciso: 'Carga Dragón', explosivo: 'Terremoto' },
 };
 
 export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: string; descripcionHabilidad: string }> = {
@@ -169,6 +179,10 @@ export const CHARACTER_INFO: Record<CharacterId, { nombre: string; habilidad: st
   squirtle: { nombre: 'Squirtle', habilidad: 'Cortina', descripcionHabilidad: 'Proyectil que despliega una niebla de 3 m de radio durante 7 s. Bloquea la visión y la detección de los bots; no detiene ataques ni movimiento.' },
   bulbasaur: { nombre: 'Bulbasaur', habilidad: 'Esporas', descripcionHabilidad: 'Proyectil que crea una zona de esporas de 2,5 m de radio durante 5 s. Reduce la velocidad enemiga al 65 % mientras permanecen dentro. Sin daño.' },
   mewtwo: { nombre: 'Mewtwo', habilidad: 'Premonición', descripcionHabilidad: 'Esfera psíquica que detona tras 0,8 s y revela durante 3 s a los enemigos en 10 m, incluso a través de paredes (aparecen en el minimapa y como marcadores). No inflige daño.' },
+  gengar: { nombre: 'Gengar', habilidad: 'Niebla Sombría', descripcionHabilidad: 'Proyectil que despliega una niebla espectral de 3 m de radio durante 7 s. Bloquea la visión y la detección de los bots; no detiene ataques ni movimiento.' },
+  gardevoir: { nombre: 'Gardevoir', habilidad: 'Premonición', descripcionHabilidad: 'Esfera psíquica que detona tras 0,8 s y revela durante 3 s a los enemigos en 10 m, incluso a través de paredes (aparecen en el minimapa y como marcadores). No inflige daño.' },
+  lucario: { nombre: 'Lucario', habilidad: 'Destello de Aura', descripcionHabilidad: 'Esfera de aura que detona tras 0,8 s y ciega hasta 1,2 s a los enemigos con línea de visión en 8 m. Mirar en dirección opuesta reduce el efecto a 0,3 s. No afecta a aliados.' },
+  garchomp: { nombre: 'Garchomp', habilidad: 'Bramido Dragón', descripcionHabilidad: 'Proyectil que crea una zona de presión dracónica de 2,5 m de radio durante 5 s. Reduce la velocidad enemiga al 65 % mientras permanecen dentro. Sin daño.' },
 };
 
 // ===== Evolución en mitad de la partida =====
@@ -190,6 +204,10 @@ export const EVOLUTIONS: Record<CharacterId, string[]> = {
   squirtle: ['Wartortle', 'Blastoise'],
   bulbasaur: ['Ivysaur', 'Venusaur'],
   mewtwo: [],
+  gengar: [],
+  gardevoir: [],
+  lucario: [],
+  garchomp: [],
 };
 
 export function maxEvoStage(id: CharacterId): number {

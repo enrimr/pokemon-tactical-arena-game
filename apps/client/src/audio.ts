@@ -114,7 +114,10 @@ class AudioEngine {
   disparo(weapon: WeaponId, char: CharacterId, pos?: [number, number, number]): void {
     if (!this.ready) return;
     const base = { pulso: [700, 180, 0.12, 0.35], rafaga: [900, 240, 0.09, 0.3], preciso: [1400, 90, 0.3, 0.5], explosivo: [320, 60, 0.22, 0.55] }[weapon];
-    const flavor: Record<CharacterId, OscillatorType> = { pikachu: 'square', charmander: 'sawtooth', squirtle: 'sine', bulbasaur: 'triangle', mewtwo: 'sine' };
+    const flavor: Record<CharacterId, OscillatorType> = {
+      pikachu: 'square', charmander: 'sawtooth', squirtle: 'sine', bulbasaur: 'triangle', mewtwo: 'sine',
+      gengar: 'triangle', gardevoir: 'sine', lucario: 'square', garchomp: 'sawtooth',
+    };
     const dest = this.out(pos);
     const g = this.env(dest, base[2], base[3]);
     this.osc(flavor[char], base[0], base[1], base[2], g);
